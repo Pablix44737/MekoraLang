@@ -53,3 +53,14 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# --- MekoraLang ---
+
+# Archivos generados por flex, bison y gcc
+build/
+
+# Ejecutable del compilador
+gcodec
+
+# G-code generado en las pruebas
+*.gcode

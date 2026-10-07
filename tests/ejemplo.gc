@@ -1,0 +1,54 @@
+// Rutina de mantenimiento completa
+
+machine Ender3 {
+    temp_extrusor: 210;
+    temp_cama: 60;
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const MARGEN : number = 10;
+
+procedure Preparar(m: machine) {
+    SetBedTemp(m.temp_cama);
+    SetExtruderTemp(m.temp_extrusor);
+    WaitBedTemp(m.temp_cama);
+    WaitExtruderTemp(m.temp_extrusor);
+    AutoHome();
+}
+
+procedure PurgarBoquilla() {
+    Message("Purgando");
+    repeat 5 {
+        Extrude(E: 10, F: 300);
+        Wait(2);
+    }
+}
+
+procedure BarridoCama(m: machine) {
+    var vel : number = m.feedrate_max;
+
+    if (vel > 3000) {
+        vel = 3000;
+    }
+
+    repeat 4 as fila {
+        Move(X: MARGEN,              Y: MARGEN + fila * 50, F: vel);
+        Move(X: m.limite_x - MARGEN, Y: MARGEN + fila * 50, F: vel);
+    }
+}
+
+procedure LiberarParaLimpieza() {
+    TurnOffHeaters();
+    Message("Listo - mover a mano");
+    DisableMotors();
+}
+
+main {
+    Preparar(Ender3);
+    PurgarBoquilla();
+    BarridoCama(Ender3);
+    LiberarParaLimpieza();
+}
