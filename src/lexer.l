@@ -21,11 +21,21 @@
 
 /* Seguimiento de columna. yylineno lo lleva flex solo; la columna hay que
  * contarla a mano. col_inicio guarda la columna donde arranca el token
- * actual, que es la que se reporta en los errores. */
+ * actual, que es la que se reporta en los errores.
+ *
+ * Ademas se copia la posicion a yylloc, que es por donde bison la recibe.
+ * Con eso cada regla de la gramatica puede preguntar donde empieza cada
+ * simbolo (@1, @2...) y guardarlo en el nodo del arbol. */
 int columna    = 1;
 int col_inicio = 1;
 
-#define YY_USER_ACTION  { col_inicio = columna; columna += yyleng; }
+#define YY_USER_ACTION  {                                   \
+        col_inicio = columna;                               \
+        columna += yyleng;                                  \
+        yylloc.first_line   = yylloc.last_line = yylineno;  \
+        yylloc.first_column = col_inicio;                   \
+        yylloc.last_column  = columna - 1;                  \
+    }
 %}
 
 DIGITO      [0-9]
@@ -120,6 +130,18 @@ CADENA      \"[^\"\n]*\"
 {ID}                {
                         yylval.texto = strdup(yytext);
                         return ID;
+                    }
+
+    /* --- Fin del archivo --- */
+    /* YY_USER_ACTION no corre en el fin de archivo, asi que yylloc quedaria
+     * apuntando al ultimo espacio o salto de linea leido. Se fija a mano
+     * para que un error del tipo "falta una llave" marque donde termina
+     * el archivo. */
+
+<<EOF>>             {
+                        yylloc.first_line   = yylloc.last_line = yylineno;
+                        yylloc.first_column = yylloc.last_column = columna;
+                        return 0;
                     }
 
     /* --- Errores --- */

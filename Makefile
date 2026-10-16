@@ -1,16 +1,19 @@
 CC       = gcc
-CFLAGS   = -std=c11 -g -Wall
+# -MMD -MP: gcc anota en un .d de que headers depende cada .o, y make lo
+# lee al final del archivo. Asi, si cambia un .h, se recompila lo que lo usa.
+CFLAGS   = -std=c11 -g -Wall -MMD -MP
 # gnu11 en lugar de c11: el codigo que genera flex usa fileno(), que es POSIX
 # y no esta declarado bajo el estandar ISO estricto.
-GENFLAGS = -std=gnu11 -g
+GENFLAGS = -std=gnu11 -g -MMD -MP
 BIN      = gcodec
 
 SRC   = src
 BUILD = build
 
-OBJS = $(BUILD)/parser.tab.o $(BUILD)/lex.yy.o $(BUILD)/main.o $(BUILD)/codegen.o $(BUILD)/errores.o $(BUILD)/tokens.o
+OBJS = $(BUILD)/parser.tab.o $(BUILD)/lex.yy.o $(BUILD)/main.o $(BUILD)/codegen.o $(BUILD)/errores.o $(BUILD)/tokens.o \
+       $(BUILD)/ast.o
 
-.PHONY: all clean test tokens
+.PHONY: all clean test tokens ast
 
 all: $(BIN)
 
@@ -36,6 +39,10 @@ $(BUILD)/lex.yy.o: $(BUILD)/lex.yy.c $(BUILD)/parser.tab.h
 $(BUILD)/%.o: $(SRC)/%.c | $(BUILD)
 	$(CC) $(CFLAGS) -I$(SRC) -I$(BUILD) -c -o $@ $<
 
+# tokens.c incluye parser.tab.h. En el primer build todavia no hay .d que
+# lo diga, asi que la dependencia se declara a mano para que bison corra antes.
+$(BUILD)/tokens.o: $(BUILD)/parser.tab.h
+
 $(BUILD):
 	mkdir -p $(BUILD)
 
@@ -47,6 +54,16 @@ test: $(BIN)
 clean:
 	rm -rf $(BUILD) $(BIN) salida.gcode
 
-# Prueba del analizador lexico aislado: vuelca los tokens del ejemplo.
+# Programa que usan "make tokens" y "make ast". Se cambia desde la linea de
+# comandos: make ast PROG=tests/sintaxis.gc
+PROG ?= tests/ejemplo.gc
+
+# Prueba del analizador lexico aislado: vuelca los tokens.
 tokens: $(BIN)
-	./$(BIN) tests/ejemplo.gc --tokens
+	./$(BIN) $(PROG) --tokens
+
+# Prueba del analizador sintactico: imprime el arbol.
+ast: $(BIN)
+	./$(BIN) $(PROG) --ast
+
+-include $(wildcard $(BUILD)/*.d)

@@ -1,0 +1,9 @@
+// Tres errores de sintaxis independientes. El parser tiene que reportar
+// los tres en una sola corrida, no cortar en el primero.
+main {
+    var a : number = 3 +;
+    Wait(1);
+    var b : bool = 1 < 2 < 3;
+    Move(X 10);
+    Wait(2);
+}

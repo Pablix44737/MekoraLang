@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
+#include "codegen.h"
 #include "errores.h"
 #include "tokens.h"
 
@@ -13,13 +15,11 @@ extern int   col_inicio;
 int yylex(void);
 int yyparse(void);
 
-/* Archivo de salida donde el generador escribe el G-code. */
-FILE *salida = NULL;
-
 static void uso(const char *prog)
 {
-    fprintf(stderr, "uso: %s <entrada.gc> [-o <salida.gcode>] [--tokens]\n", prog);
+    fprintf(stderr, "uso: %s <entrada.gc> [-o <salida.gcode>] [--tokens | --ast]\n", prog);
     fprintf(stderr, "  --tokens   vuelca la lista de tokens y termina\n");
+    fprintf(stderr, "  --ast      imprime el arbol sintactico y termina\n");
 }
 
 /* Modo de prueba del analizador lexico: recorre la entrada token por token
@@ -45,6 +45,8 @@ int main(int argc, char **argv)
 {
     const char *ruta_salida = "salida.gcode";
     int modo_tokens = 0;
+    int modo_ast    = 0;
+    FILE *salida;
     int i;
 
     if (argc < 2) {
@@ -57,6 +59,8 @@ int main(int argc, char **argv)
     for (i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--tokens") == 0) {
             modo_tokens = 1;
+        } else if (strcmp(argv[i], "--ast") == 0) {
+            modo_ast = 1;
         } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             ruta_salida = argv[++i];
         } else {
@@ -78,23 +82,39 @@ int main(int argc, char **argv)
         return r;
     }
 
-    salida = fopen(ruta_salida, "w");
-    if (!salida) {
-        perror(ruta_salida);
-        fclose(yyin);
-        return 2;
-    }
-
-    yyparse();
-
-    fclose(salida);
+    /* Fase de analisis: lexico y sintactico juntos. Si termina bien, en
+     * "arbol" queda el programa completo. */
+    if (yyparse() != 0 && errores == 0)
+        errores++;   /* no deberia pasar: todo error ya se reporta solo */
     fclose(yyin);
 
     if (errores > 0) {
         fprintf(stderr, "Compilacion fallida: %d error(es).\n", errores);
-        remove(ruta_salida);
+        ast_liberar(arbol);
         return 1;
     }
+
+    if (modo_ast) {
+        ast_imprimir(stdout, arbol);
+        ast_liberar(arbol);
+        return 0;
+    }
+
+    /* Generacion. El archivo de salida se abre recien aca, cuando ya se
+     * sabe que el fuente es valido. */
+    salida = fopen(ruta_salida, "w");
+    if (!salida) {
+        perror(ruta_salida);
+        ast_liberar(arbol);
+        return 2;
+    }
+
+    emitir_prologo(salida);
+    /* Paso 5: recorrer el arbol a partir de main y emitir el G-code. */
+    emitir_epilogo(salida);
+
+    fclose(salida);
+    ast_liberar(arbol);
 
     printf("Compilacion exitosa: %s\n", ruta_salida);
     return 0;

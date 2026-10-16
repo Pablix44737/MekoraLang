@@ -1,0 +1,47 @@
+// Cubre todas las construcciones de la gramatica. Solo sirve para probar
+// el parser: no todo lo que hay aca pasaria el analisis semantico.
+
+machine M { limite_x: 220; }
+
+const FLUJO : number = 0.033;
+const DEBUG : bool = false;
+
+procedure Cuadrado(ox: number, oy: number, lado: number) {
+    Draw(X: ox + lado, Y: oy, E: lado * FLUJO, F: 1200);
+}
+
+main {
+    AutoHome(X, Y);
+
+    // precedencia: 1 + ((2 * 3) % 4) - (8 / 2)
+    var a : number = 1 + 2 * 3 % 4 - 8 / 2;
+
+    // asociatividad a izquierda: (10 - 3) - 2
+    var b : number = 10 - 3 - 2;
+
+    // los parentesis cambian la agrupacion
+    var c : number = (1 + 2) * 3;
+
+    // menos unario
+    var d : number = -a * -(b + 1);
+
+    // not se aplica a la comparacion entera; and liga mas que or
+    var ok : bool = not a > 3 and true or DEBUG;
+
+    if (a == 1) {
+        a = 2;
+    } else if (a != 1 and b <= 5) {
+        { var x : number = M.limite_x; }
+    } else {
+        Raw("M119");
+    }
+
+    repeat 3 as i {
+        repeat 2 {
+            Fan(S: 0);
+            Cuadrado(10 + i * 20, 10, 15);
+        }
+    }
+
+    Message("fin");
+}
