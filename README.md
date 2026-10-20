@@ -56,6 +56,7 @@ su posicion en el fuente:
     src/codegen.c    emision de G-code
     src/main.c       punto de entrada, argumentos y codigo de salida
     tests/           programas de prueba, validos y con errores
+    docs/            especificacion y referencia del lenguaje
     build/           archivos generados, no se versiona
 
 ## Estado
