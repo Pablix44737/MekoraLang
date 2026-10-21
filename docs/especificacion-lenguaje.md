@@ -1,4 +1,4 @@
-# Especificación del lenguaje (v4) — DSL de alto nivel → G-code
+# Especificación del lenguaje (v5) — DSL de alto nivel → G-code
 
 Decisiones cerradas: palabras reservadas en inglés y minúscula; estructuras de control limitadas a `if/else` + `repeat N`; vínculo con la máquina por parámetro explícito (sin `LoadMachine`); sin funciones con valor de retorno; modos de posicionamiento y extrusión fijados por el compilador; sin builtins de consulta al host; **tabla de builtins derivada de las operaciones del dominio, no de los comandos G-code**.
 
@@ -162,8 +162,30 @@ Tres tipos: `number` (real, se emite con 3 decimales), `bool`, `machine`.
 
 - No hay tipo `string`: las cadenas existen únicamente como literal argumento de builtins (`Message`, `Raw`).
 - No hay conversión implícita entre `number` y `bool`.
-- El tipo `machine` solo aparece como tipo de parámetro; no se puede declarar una variable local de tipo `machine` ni asignar una máquina.
+- El tipo `machine` solo aparece como tipo de parámetro; no se puede declarar una variable ni una constante de tipo `machine`, ni asignar una máquina. Un nombre de máquina solo puede aparecer como argumento de un parámetro `machine` o a la izquierda de un punto (`Ender3.limite_x`).
 - Los campos de un bloque `machine` son siempre `number`.
+
+El tipo de cada expresión se calcula a partir de los tipos de sus partes:
+
+- `+ - * / %` y el menos unario se aplican a `number` y dan `number`. `%` es el resto real: `7.5 % 2` vale 1.5.
+- `< > <= >=` comparan dos `number` y dan `bool`.
+- `==` y `!=` comparan dos `number` o dos `bool` y dan `bool`.
+- `and`, `or` y `not` se aplican a `bool` y dan `bool`.
+
+Una división o un resto por cero en una expresión que se evalúa al compilar es un error.
+
+### 5.1 La máquina
+
+Un programa se compila para una impresora concreta, así que declara exactamente una máquina, y esa declaración es la primera del programa. Si se quiere el mismo programa para dos impresoras, son dos programas.
+
+Toda máquina tiene que declarar cuatro campos, que son los únicos nombres de campo con significado para el compilador:
+
+- `limite_x`, `limite_y`, `limite_z`: el recorrido de cada eje en milímetros. Toda coordenada de `Move` y `Draw` tiene que estar entre 0 y el límite.
+- `feedrate_max`: la velocidad máxima en mm/min. Todo `F:` tiene que ser mayor que 0 y no superarla.
+
+Los cuatro tienen que ser mayores que 0. Además de esos, el programador puede agregar los campos que quiera (por ejemplo, las temperaturas de trabajo) y leerlos con el punto; el compilador no les da ningún significado.
+
+Como hay una sola máquina, un parámetro de tipo `machine` siempre es esa máquina, y el acceso `m.campo` se verifica al analizar el procedimiento, sin esperar a la llamada.
 
 ---
 
@@ -243,6 +265,8 @@ En los tres primeros, todos los parámetros de eje son opcionales pero debe habe
 
 `Fan(S: 0)` emite `M106 S0`, que equivale a `M107`; no hace falta un caso especial en el generador.
 
+El texto de `Message` no puede tener `;`: en G-code el punto y coma empieza un comentario, y Marlin mostraría el texto cortado. `Raw` no tiene esa restricción, porque quien la usa está escribiendo G-code.
+
 `DisableMotors()` es una operación de mantenimiento genuina, no azúcar del epílogo: con los steppers energizados los ejes quedan retenidos y no se pueden mover a mano. Liberarlos es requisito para manipular la máquina físicamente. Ver la sección 8.1, porque tiene una consecuencia semántica importante.
 
 ### Builtins descartados y por qué
@@ -254,6 +278,8 @@ En los tres primeros, todos los parámetros de eje son opcionales pero debe habe
 ### Nota de implementación
 
 Los builtins deben implementarse como una **tabla de datos** (nombre, parámetros admitidos con su tipo y obligatoriedad, plantilla de G-code), no como un `case` por builtin en el generador. Con esa arquitectura el chequeo de aridad y tipos recorre la tabla, y agregar un builtin cuesta una fila.
+
+En la implementación (`src/builtins.c`) cada parámetro dice si es posicional (`Wait(2)`), nombrado con un eje (`Move(X: 10)`), un eje sin valor (`AutoHome(X)`) o una cadena (`Message("...")`), su tipo, si es obligatorio y con qué letra sale en el G-code. Cada fila dice además si el builtin necesita al menos un eje de posición, qué efecto tiene sobre la posición conocida (ninguno, mueve, referencia o libera) y su plantilla. De esos datos salen todos los chequeos de forma de las llamadas: aridad, tipos, `Draw` sin `E:`, `Move` sin ningún eje, ejes que el builtin no admite y ejes repetidos.
 
 ---
 
@@ -269,6 +295,14 @@ El compilador mantiene, por cada eje, un booleano **"posición conocida"**. Tres
 - **`Move` o `Draw` sobre un eje cuya posición no es conocida es un error de compilación.**
 
 En un `if`, la posición de un eje queda en verdadero después del condicional solo si lo está en **todas** las ramas (es el join conservador de un análisis de flujo de datos; en el informe conviene nombrarlo así).
+
+El análisis no mira el valor de la condición: recorre las dos ramas aunque la condición sea una constante. Es una decisión, no una limitación. El lenguaje no tiene entradas, así que en la generación (paso 5) toda condición se puede evaluar, y como Marlin no tiene condicionales en G-code el generador va a emitir solo la rama que se toma. Pero el análisis semántico no depende de esos valores: la garantía que da vale para cualquier valor de la condición, y seguiría valiendo si el lenguaje algún día tuviera entradas.
+
+Las llamadas a procedimientos se analizan como si el cuerpo estuviera escrito en el lugar de la llamada, que es lo que hace el generador. El análisis empieza en `main` y, en cada llamada, entra al procedimiento con el estado de los tres ejes en ese punto y sale con el que deja el cuerpo. Por eso en el ejemplo de la sección 9 `Preparar` puede hacer el `AutoHome()` y `BarridoCama` mover después. Si el error está dentro de un procedimiento, el mensaje se marca en la sentencia de adentro y lo siguen notas que dicen desde qué llamadas se llegó.
+
+El cuerpo de un `repeat` se recorre tantas veces como se repite, igual que el desenrollado. Así se ve el caso de un cuerpo que hace `DisableMotors()` y en la vuelta siguiente mueve, y en cada vuelta el índice tiene su valor para los límites. Un `repeat 0` no recorre el cuerpo, porque nunca se ejecuta.
+
+Los procedimientos que `main` nunca llama no pasan por este análisis: no generan G-code y nunca se ejecutan. El resto de los chequeos sí se les aplica.
 
 Este chequeo vale doble:
 
@@ -292,16 +326,62 @@ Ninguno de los dos es detectable en G-code crudo bajo ninguna circunstancia. Es 
 11. **`Draw` sin `E:` o sin eje de posición** — error.
 12. **Al menos un parámetro de eje** en `Move`, `Draw`, `Extrude`.
 13. **Posición conocida** (sección 8.1).
-14. **Límites físicos** (abajo).
+14. **Límites físicos** y feedrate máximo (abajo).
+
+Chequeos que se agregaron en el paso 4, al resolver los casos que la lista anterior no cubría:
+
+15. **Exactamente una máquina**, declarada primero y con los cuatro campos obligatorios mayores que 0 (sección 5.1).
+16. **Declarar antes de usar** y **recursión prohibida** (sección 8.4).
+17. **Forma de los argumentos de un builtin**: ejes que el builtin no admite (`Move(E: 5)` es error, por el criterio de la sección 1), ejes repetidos, eje sin valor fuera de `AutoHome`, eje con valor en `AutoHome`, cadena donde va un número y número donde va una cadena.
+18. **Procedimientos con argumentos posicionales**: no reciben ejes ni cadenas.
+19. **Asignación a un parámetro** — error (es de solo lectura, como el índice).
+20. **Nombres de builtins reservados**: no se puede declarar nada llamado `Move`, `Wait`, etc.
+21. **`;` en el texto de `Message`** — error (sección 7).
+22. **División o resto por cero** en una expresión que se evalúa al compilar.
 
 ### 8.3 Validación de límites
 
 Con el posicionamiento fijado en absoluto, el argumento de cada `Move` / `Draw` es directamente la coordenada destino:
 
-- Si el argumento es una **expresión constante** (literales, constantes, campos de máquina, y el índice de `repeat` una vez desenrollado): se evalúa y se emite **error de compilación** si queda fuera de `[0, limite_eje]`.
+- Si el argumento es una **expresión constante**: se evalúa y se emite **error de compilación** si queda fuera de `[0, limite_eje]`.
 - Si depende de una variable no determinable estáticamente: **advertencia**, y se emite un comentario en el G-code generado.
 
-Como el `repeat` se desenrolla por completo, la enorme mayoría de los movimientos cae en el primer caso.
+Lo mismo vale para todo `F:` (en `Move`, `Draw` y `Extrude`), que tiene que ser mayor que 0 y no superar `feedrate_max`.
+
+Una expresión es constante si solo usa literales, constantes, campos de la máquina (`Ender3.limite_x`, o `m.limite_x` con `m` parámetro), índices de `repeat` y parámetros cuyo argumento en la llamada fue constante. La definición es recursiva: en `Cuadrado(80, 80, 40)`, `origen_x + lado` es constante porque los dos argumentos lo son. Las variables (`var`) nunca son constantes, aunque su valor se pueda deducir, porque se pueden reasignar. Esto exige que los parámetros sean de solo lectura.
+
+La misma definición vale para la cantidad de un `repeat`, que además tiene que ser un entero no negativo. Si usa una variable, el error se da al analizar el procedimiento. Si usa un parámetro, el valor se conoce en cada llamada, y el error, si lo hay, sale con la nota de la llamada.
+
+El índice de un `repeat` empieza en 0: `repeat 4 as fila` le da a `fila` los valores 0, 1, 2 y 3. Si un movimiento se sale de los límites en una vuelta, el mensaje dice el valor del índice en esa vuelta.
+
+Como el `repeat` se desenrolla por completo, la enorme mayoría de los movimientos cae en el primer caso. En el ejemplo de la sección 9, los dos `F: vel` de `TestEjes` dan advertencia, porque `vel` es una variable.
+
+### 8.4 Alcance y orden de las declaraciones
+
+Los nombres se resuelven con una tabla de símbolos por alcance y la regla del bloque anidado más cercano. Los alcances son estos, de afuera hacia adentro: uno predefinido con los builtins, el global (la máquina, las constantes y los procedimientos), uno por procedimiento y uno por `main`, y uno por cada bloque interno, rama de `if` o cuerpo de `repeat`. Los campos de la máquina están en un alcance aparte, al que solo se llega con el punto.
+
+Reglas:
+
+- **Todo nombre se declara antes de usarse**, incluidos los procedimientos: un procedimiento solo puede llamar a los que están declarados más arriba. Como `main` va al final, puede llamar a todos. Si se usa un nombre declarado más abajo, el mensaje lo dice.
+- **No hay recursión.** Cada llamada se expande en línea, así que una llamada recursiva no terminaría. Con la regla anterior la recursión indirecta no se puede escribir: para que A llame a B y B a A, uno de los dos tendría que llamar a un procedimiento declarado más abajo. Queda la directa, que es un error con mensaje propio.
+- **Redeclarar en el mismo alcance es error. Ocultar es válido:** un bloque interno puede declarar un nombre que ya existe afuera (una variable, un parámetro o una constante), y adentro del bloque vale el de adentro.
+- Los parámetros comparten alcance con el cuerpo del procedimiento: `procedure P(a: number) { var a ... }` es una redeclaración. Lo mismo el índice de un `repeat` con el cuerpo del `repeat`. Los bloques internos sí pueden ocultarlos.
+- Hay un solo espacio de nombres: una variable llamada `Preparar` oculta al procedimiento `Preparar`, y llamarla da "no es un procedimiento".
+- Los nombres de los builtins están reservados.
+- En `var a : number = a + 1;` la `a` de la derecha es la de afuera: la variable existe recién después de su declaración.
+- El valor de una constante o de un campo tiene que ser una expresión constante hecha con literales y constantes declaradas antes.
+
+### 8.5 Organización del análisis
+
+El análisis se hace en dos recorridos del árbol.
+
+El primero recorre las declaraciones en el orden del fuente y después `main`. Arma la tabla de símbolos, resuelve los nombres, calcula los tipos y verifica la forma de cada llamada, las asignaciones y los `repeat` con variables. Deja el árbol decorado: cada uso de un nombre queda apuntando a su entrada en la tabla.
+
+El segundo empieza en `main` y recorre el programa como se va a ejecutar, con la expansión en línea y el desenrollado descritos en la sección 8.1. Hace los chequeos que dependen del camino: posición conocida, límites, feedrate, el valor de cada `repeat` y las divisiones por cero que dependen de un parámetro.
+
+El segundo recorrido corre solo si el primero terminó sin errores. Con nombres sin resolver o tipos equivocados no tiene sentido evaluar, y se evitan errores en cascada. Por eso un programa con un error de tipos no muestra todavía sus errores de posición.
+
+Cada error del segundo recorrido se informa una vez por sentencia y por cadena de llamadas: si un cuerpo de `repeat` falla en todas las vueltas, el error sale una sola vez, en la primera.
 
 ---
 
@@ -389,6 +469,8 @@ main {
 
 Si a `LiberarParaMantenimiento()` le siguiera un `Move`, el compilador lo rechaza por posición desconocida hasta que aparezca un `AutoHome()`.
 
+El programa compila con dos advertencias, una por cada `F: vel` de `TestEjes`: `vel` es una variable, así que el compilador no puede verificar al compilar que no supere `feedrate_max`. `LiberarParaMantenimiento` no se llama desde `main`, así que no pasa por el chequeo de posición (sección 8.1).
+
 ### Cambios acumulados respecto de la propuesta original
 
 | Antes | Ahora | Motivo |
@@ -405,6 +487,9 @@ Si a `LiberarParaMantenimiento()` le siguiera un `Move`, el compilador lo rechaz
 | — | `Rapid` descartado | `G0` es sinónimo de `G1` en Marlin |
 | `Move` con `E:` | `Move` sin `E:`; se agrega `Draw` | Un builtin por operación del dominio, ninguno azúcar de otro |
 | — | chequeo de posición conocida | Detecta movimiento sin homing y tras `DisableMotors()` |
+| cualquier cantidad de máquinas, campos libres | exactamente una máquina, primera, con cuatro campos obligatorios | Un programa es para una impresora; el compilador necesita sus límites y su feedrate |
+| — | `F:` verificado contra `feedrate_max` | La misma garantía que los límites, para la velocidad |
+| orden libre de declaraciones | declarar antes de usar, sin recursión | Una sola regla, y hace imposible la recursión indirecta |
 
 Convención de nombres vigente: **palabras clave y builtins en inglés; identificadores (máquinas, campos, procedimientos, variables) los nombra el usuario libremente.** Por eso conviven `machine Ender3 { temp_extrusor: 210; }` y `SetExtruderTemp(...)` sin incoherencia.
 
@@ -458,7 +543,9 @@ El contraste entre el bucle explícito del fuente y su desenrollado en la salida
 
 ## 11. Escenarios de prueba (requisito de la cátedra)
 
-Casos válidos: programa mínimo (solo `main`), máquina con un único campo, procedimiento sin parámetros, `if` sin `else`, `if/else if/else` encadenado, `repeat` anidado, `repeat` con índice, expresión aritmética con precedencia mixta, `Draw` completo, `DisableMotors()` seguido de `AutoHome()` y movimiento, uso de `Raw`.
+Casos válidos: programa mínimo (la máquina con solo los campos obligatorios y un `main` vacío; desde el paso 4 la máquina es obligatoria y el caso "máquina con un único campo" dejó de ser válido), procedimiento sin parámetros, `if` sin `else`, `if/else if/else` encadenado, `repeat` anidado, `repeat` con índice, expresión aritmética con precedencia mixta, `Draw` completo, `DisableMotors()` seguido de `AutoHome()` y movimiento, uso de `Raw`. En el paso 4 se agregaron: el programa de la sección 9 completo (`ejemplo_completo.gc`), homing en todas las ramas de un `if` (`pos_if_ramas.gc`), `AutoHome(X, Y)` parcial, ocultamiento de nombres y un límite que depende de una variable, que compila con una advertencia (`adv_limite_variable.gc`).
+
+Cada archivo de prueba dice en su segunda línea qué se espera: "compila sin errores" o el error, con la línea y un fragmento del mensaje.
 
 Casos de error, uno por chequeo de la sección 8:
 
@@ -483,6 +570,40 @@ Casos de error, uno por chequeo de la sección 8:
 | `err_lexico.gc` | carácter no reconocido (`@`) |
 | `err_sintactico.gc` | `;` faltante |
 
+Casos de error agregados en el paso 4, por las decisiones de las secciones 5.1, 8.3 y 8.4:
+
+| Archivo | Error esperado |
+|---|---|
+| `err_sin_maquina.gc` | programa sin máquina |
+| `err_dos_maquinas.gc` | dos máquinas |
+| `err_maquina_no_primera.gc` | la máquina no es la primera declaración |
+| `err_campo_faltante.gc` | falta `feedrate_max` |
+| `err_campo_no_positivo.gc` | `limite_z: 0` |
+| `err_recursion.gc` | un procedimiento que se llama a sí mismo |
+| `err_uso_antes.gc` | llamada a un procedimiento declarado más abajo |
+| `err_eje_no_admitido.gc` | `Move(X: 10, E: 5)` |
+| `err_eje_repetido.gc` | `Move(X: 10, X: 20)` |
+| `err_eje_solo.gc` | `Move(X)` |
+| `err_autohome_valor.gc` | `AutoHome(X: 10)` |
+| `err_cadena_arg.gc` | `Wait("dos")` |
+| `err_tipo_op.gc` | `3 + true` |
+| `err_tipo_arg.gc` | `SetBedTemp(true)` |
+| `err_aridad_proc.gc` | procedimiento con argumentos de menos |
+| `err_var_machine.gc` | `var m : machine = Ender3;` |
+| `err_const_machine.gc` | `const M : machine = Ender3;` |
+| `err_repeat_negativo.gc` | `repeat -2` |
+| `err_repeat_no_entero.gc` | `repeat 2.5` |
+| `err_repeat_param.gc` | `repeat n` con `n` parámetro que recibe una variable |
+| `err_pos_proc.gc` | posición desconocida dentro de un procedimiento, con la nota de la llamada |
+| `err_limite_indice.gc` | límite excedido en una vuelta de un `repeat`, con el valor del índice |
+| `err_limite_param.gc` | límite excedido por el argumento de una llamada |
+| `err_feedrate.gc` | `F: 5000` con `feedrate_max: 3000` |
+| `err_asig_param.gc` | asignación a un parámetro |
+| `err_nombre_builtin.gc` | `procedure Move()` |
+| `err_message_punto_coma.gc` | `Message("Calentando; esperar")` |
+| `err_div_cero.gc` | `10 / 0` en una constante |
+| `err_no_procedimiento.gc` | llamada a una variable |
+
 ---
 
 ## 12. Trabajo futuro (sección del informe LNCS)
@@ -503,3 +624,4 @@ Extensiones identificadas y deliberadamente excluidas:
 2. Si acepta el desenrollado del `repeat` como estrategia de generación, o si prefiere un backend intérprete.
 3. Si la decisión de fijar los modos de posicionamiento y extrusión en el compilador le parece una simplificación válida o una pérdida de expresividad.
 4. Si el análisis de posición conocida (sección 8.1) le resulta suficiente como aporte de análisis de flujo de datos, o si espera ver algo más.
+5. Si le parece bien que el análisis semántico sea conservador aunque el programa no tenga entradas. Como todo valor se conoce al compilar y Marlin no tiene condicionales, el generador va a evaluar cada `if` y emitir una sola rama; el análisis, en cambio, une las dos ramas sin mirar la condición (sección 8.1). Se relaciona con la pregunta 2.

@@ -1,5 +1,11 @@
 // Cubre todas las construcciones de la gramatica. Solo sirve para probar
-// el parser: no todo lo que hay aca pasaria el analisis semantico.
+// el parser: no todo lo que hay aca pasaria el analisis semantico. En
+// particular, a la maquina M le faltan los campos obligatorios limite_y,
+// limite_z y feedrate_max, asi que compilarlo sin --ast da tres errores
+// semanticos y devuelve 1. Es lo esperado: este archivo se usa con
+// "make ast PROG=tests/sintaxis.gc". Con la maquina completa, el resto
+// del archivo pasa el analisis semantico.
+// Esperado: tres errores en la linea 10, uno por cada campo obligatorio que falta
 
 machine M { limite_x: 220; }
 

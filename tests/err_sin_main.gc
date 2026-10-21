@@ -1,0 +1,12 @@
+// Programa sin main. Desde el paso 3 es un error sintactico: la gramatica
+// exige exactamente un main al final.
+// Esperado: error sintactico en la linea 13: se encontro el fin del archivo
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const MARGEN : number = 10;

@@ -1,0 +1,23 @@
+// repeat anidado con indice: cada movimiento se verifica contra los
+// limites con los valores de fila y col de cada vuelta (el mayor X es
+// 30 + 4 * 40 = 190).
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const PASO : number = 40;
+
+main {
+    AutoHome();
+    repeat 5 as fila {
+        repeat 5 as col {
+            Move(X: 10 + col * PASO, Y: 10 + fila * PASO, F: 3000);
+            Draw(X: 30 + col * PASO, Y: 10 + fila * PASO, E: 0.66, F: 1200);
+        }
+    }
+}

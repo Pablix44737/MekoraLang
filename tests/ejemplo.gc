@@ -1,4 +1,5 @@
 // Rutina de mantenimiento completa
+// Esperado: compila sin errores, con advertencias en las lineas 39 y 40 por F: vel
 
 machine Ender3 {
     temp_extrusor: 210;

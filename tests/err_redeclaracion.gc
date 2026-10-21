@@ -1,0 +1,14 @@
+// Dos var con el mismo nombre en el mismo alcance.
+// Esperado: error en la linea 13: 'vel' ya esta declarado en este alcance
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    var vel : number = 1500;
+    var vel : number = 3000;
+}

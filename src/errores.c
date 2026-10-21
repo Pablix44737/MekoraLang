@@ -3,23 +3,26 @@
 #include "errores.h"
 
 int         errores         = 0;
+int         advertencias    = 0;
 const char *archivo_entrada = "<entrada>";
 
-static void reportar(const char *fase, int linea, int columna,
+/* "clase" es lo que va despues de la posicion: "error lexico",
+ * "advertencia", "nota". "contador" es el que se incrementa, o NULL. */
+static void reportar(const char *clase, int *contador, int linea, int columna,
                      const char *fmt, va_list args)
 {
-    fprintf(stderr, "%s:%d:%d: error %s: ",
-            archivo_entrada, linea, columna, fase);
+    fprintf(stderr, "%s:%d:%d: %s: ", archivo_entrada, linea, columna, clase);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
-    errores++;
+    if (contador)
+        (*contador)++;
 }
 
 void error_lexico(int linea, int columna, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    reportar("lexico", linea, columna, fmt, args);
+    reportar("error lexico", &errores, linea, columna, fmt, args);
     va_end(args);
 }
 
@@ -27,7 +30,7 @@ void error_sintactico(int linea, int columna, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    reportar("sintactico", linea, columna, fmt, args);
+    reportar("error sintactico", &errores, linea, columna, fmt, args);
     va_end(args);
 }
 
@@ -35,6 +38,22 @@ void error_semantico(int linea, int columna, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    reportar("semantico", linea, columna, fmt, args);
+    reportar("error semantico", &errores, linea, columna, fmt, args);
+    va_end(args);
+}
+
+void advertencia(int linea, int columna, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    reportar("advertencia", &advertencias, linea, columna, fmt, args);
+    va_end(args);
+}
+
+void nota(int linea, int columna, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    reportar("nota", NULL, linea, columna, fmt, args);
     va_end(args);
 }

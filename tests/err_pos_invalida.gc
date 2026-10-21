@@ -1,0 +1,16 @@
+// Move despues de DisableMotors sin volver a referenciar.
+// Esperado: error en la linea 15: 'Move' con posicion desconocida en el eje X: DisableMotors() en la linea 14 libero los motores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    AutoHome();
+    Move(X: 10);
+    DisableMotors();
+    Move(X: 20);
+}

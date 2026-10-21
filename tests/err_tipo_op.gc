@@ -1,0 +1,13 @@
+// Operador aritmetico aplicado a un bool.
+// Esperado: error en la linea 12: el operador '+' se aplica a dos number, y aca recibe number y bool
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    var a : number = 3 + true;
+}

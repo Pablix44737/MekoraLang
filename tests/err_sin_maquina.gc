@@ -1,0 +1,6 @@
+// Programa sin declaracion de maquina.
+// Esperado: error en la linea 4: falta la declaracion de la maquina
+
+main {
+    Wait(1);
+}

@@ -208,6 +208,7 @@ const char *ast_nombre_tipo(TipoDato tipo)
     case DATO_NUMBER:  return "number";
     case DATO_BOOL:    return "bool";
     case DATO_MACHINE: return "machine";
+    case DATO_ERROR:   return "<error>";
     }
     return "?";
 }

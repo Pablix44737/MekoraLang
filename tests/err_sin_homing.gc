@@ -1,0 +1,13 @@
+// Move como primera sentencia, sin AutoHome.
+// Esperado: error en la linea 12: 'Move' con posicion desconocida en el eje X: falta un AutoHome() antes
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    Move(X: 10);
+}

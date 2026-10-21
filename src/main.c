@@ -5,6 +5,9 @@
 #include "ast.h"
 #include "codegen.h"
 #include "errores.h"
+#include "posicion.h"
+#include "semantico.h"
+#include "simbolos.h"
 #include "tokens.h"
 
 extern FILE *yyin;
@@ -17,9 +20,16 @@ int yyparse(void);
 
 static void uso(const char *prog)
 {
-    fprintf(stderr, "uso: %s <entrada.gc> [-o <salida.gcode>] [--tokens | --ast]\n", prog);
+    fprintf(stderr, "uso: %s <entrada.gc> [-o <salida.gcode>] [--tokens | --ast | --tabla]\n", prog);
     fprintf(stderr, "  --tokens   vuelca la lista de tokens y termina\n");
     fprintf(stderr, "  --ast      imprime el arbol sintactico y termina\n");
+    fprintf(stderr, "  --tabla    hace el analisis semantico, imprime la tabla de simbolos y termina\n");
+}
+
+static void liberar_todo(void)
+{
+    ast_liberar(arbol);
+    simbolos_liberar();
 }
 
 /* Modo de prueba del analizador lexico: recorre la entrada token por token
@@ -46,6 +56,7 @@ int main(int argc, char **argv)
     const char *ruta_salida = "salida.gcode";
     int modo_tokens = 0;
     int modo_ast    = 0;
+    int modo_tabla  = 0;
     FILE *salida;
     int i;
 
@@ -61,6 +72,8 @@ int main(int argc, char **argv)
             modo_tokens = 1;
         } else if (strcmp(argv[i], "--ast") == 0) {
             modo_ast = 1;
+        } else if (strcmp(argv[i], "--tabla") == 0) {
+            modo_tabla = 1;
         } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             ruta_salida = argv[++i];
         } else {
@@ -88,15 +101,37 @@ int main(int argc, char **argv)
         errores++;   /* no deberia pasar: todo error ya se reporta solo */
     fclose(yyin);
 
+    /* --ast muestra el arbol tal como lo armo el parser, sin analisis
+     * semantico: asi se puede ver tambien el de un programa que tiene
+     * errores semanticos. */
+    if (errores == 0 && modo_ast) {
+        ast_imprimir(stdout, arbol);
+        liberar_todo();
+        return 0;
+    }
+
+    /* Analisis semantico, en dos recorridos. El primero arma la tabla de
+     * simbolos y verifica nombres y tipos; el segundo recorre el programa
+     * desde main, entrando en cada llamada, y verifica la posicion
+     * conocida y los limites. El segundo necesita el arbol decorado por el
+     * primero, asi que solo corre si el primero termino sin errores. */
+    if (errores == 0) {
+        analizar_semantica(arbol);
+        if (errores == 0)
+            analizar_posicion(arbol);
+    }
+
+    if (modo_tabla)
+        simbolos_imprimir(stdout);
+
     if (errores > 0) {
         fprintf(stderr, "Compilacion fallida: %d error(es).\n", errores);
-        ast_liberar(arbol);
+        liberar_todo();
         return 1;
     }
 
-    if (modo_ast) {
-        ast_imprimir(stdout, arbol);
-        ast_liberar(arbol);
+    if (modo_tabla) {
+        liberar_todo();
         return 0;
     }
 
@@ -105,7 +140,7 @@ int main(int argc, char **argv)
     salida = fopen(ruta_salida, "w");
     if (!salida) {
         perror(ruta_salida);
-        ast_liberar(arbol);
+        liberar_todo();
         return 2;
     }
 
@@ -114,8 +149,12 @@ int main(int argc, char **argv)
     emitir_epilogo(salida);
 
     fclose(salida);
-    ast_liberar(arbol);
+    liberar_todo();
 
-    printf("Compilacion exitosa: %s\n", ruta_salida);
+    if (advertencias > 0)
+        printf("Compilacion exitosa: %s (%d advertencia%s)\n", ruta_salida,
+               advertencias, advertencias == 1 ? "" : "s");
+    else
+        printf("Compilacion exitosa: %s\n", ruta_salida);
     return 0;
 }

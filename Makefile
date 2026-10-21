@@ -6,19 +6,23 @@ CFLAGS   = -std=c11 -g -Wall -MMD -MP
 # y no esta declarado bajo el estandar ISO estricto.
 GENFLAGS = -std=gnu11 -g -MMD -MP
 BIN      = gcodec
+# fmod y floor, para evaluar expresiones en compilacion. En Cygwin y MSYS2
+# estan en la biblioteca de C, pero en Linux hace falta -lm.
+LDLIBS   = -lm
 
 SRC   = src
 BUILD = build
 
 OBJS = $(BUILD)/parser.tab.o $(BUILD)/lex.yy.o $(BUILD)/main.o $(BUILD)/codegen.o $(BUILD)/errores.o $(BUILD)/tokens.o \
-       $(BUILD)/ast.o
+       $(BUILD)/ast.o $(BUILD)/simbolos.o $(BUILD)/builtins.o $(BUILD)/evaluador.o \
+       $(BUILD)/semantico.o $(BUILD)/posicion.o
 
-.PHONY: all clean test tokens ast
+.PHONY: all clean test tokens ast tabla
 
 all: $(BIN)
 
 $(BIN): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 # Bison genera el .c y, con -d, el .h con el enum de tokens que usa el lexer.
 $(BUILD)/parser.tab.c $(BUILD)/parser.tab.h: $(SRC)/parser.y | $(BUILD)
@@ -54,8 +58,8 @@ test: $(BIN)
 clean:
 	rm -rf $(BUILD) $(BIN) salida.gcode
 
-# Programa que usan "make tokens" y "make ast". Se cambia desde la linea de
-# comandos: make ast PROG=tests/sintaxis.gc
+# Programa que usan "make tokens", "make ast" y "make tabla". Se cambia
+# desde la linea de comandos: make ast PROG=tests/sintaxis.gc
 PROG ?= tests/ejemplo.gc
 
 # Prueba del analizador lexico aislado: vuelca los tokens.
@@ -65,5 +69,9 @@ tokens: $(BIN)
 # Prueba del analizador sintactico: imprime el arbol.
 ast: $(BIN)
 	./$(BIN) $(PROG) --ast
+
+# Prueba del analisis semantico: imprime la tabla de simbolos por alcance.
+tabla: $(BIN)
+	./$(BIN) $(PROG) --tabla
 
 -include $(wildcard $(BUILD)/*.d)

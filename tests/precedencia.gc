@@ -1,0 +1,23 @@
+// Expresiones con precedencia mixta. Los limites de la maquina sirven
+// para comprobar la agrupacion: con otra precedencia, alguno de estos
+// movimientos se saldria de la cama.
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    AutoHome();
+    // 200 + (10 * 2) = 220, justo el limite. Agrupado al reves daria 420.
+    Move(X: 200 + 10 * 2);
+    // (0 - 10) + 20 = 10, asociatividad a izquierda. A derecha daria -30.
+    Move(Y: 0 - 10 + 20);
+    // Menos unario sobre un parentesis: -(2 - 12) = 10.
+    Move(Z: -(2 - 12));
+    // not se aplica a la comparacion entera; and liga mas que or.
+    var ok : bool = not 5 > 3 and true or false;
+}

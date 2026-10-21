@@ -1,0 +1,20 @@
+// Un procedimiento que se llama a si mismo. La recursion indirecta no
+// hace falta probarla: con "declarar antes de usar" no se puede escribir.
+// Esperado: error en la linea 14: 'Barrido' se llama a si mismo
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+procedure Barrido() {
+    Move(X: 10);
+    Barrido();
+}
+
+main {
+    AutoHome();
+    Barrido();
+}

@@ -19,10 +19,14 @@
  * Los parentesis no aparecen en el arbol: la forma del arbol ya dice en que
  * orden se agrupan las operaciones. */
 
+/* DATO_ERROR no aparece en el fuente: es el tipo que el analisis semantico
+ * le da a una expresion mal formada, para no volver a reportar el mismo
+ * error en cada expresion que la contiene. */
 typedef enum {
     DATO_NUMBER,
     DATO_BOOL,
-    DATO_MACHINE
+    DATO_MACHINE,
+    DATO_ERROR
 } TipoDato;
 
 typedef enum {
@@ -63,12 +67,20 @@ typedef enum {
 } TipoNodo;
 
 typedef struct Nodo Nodo;
+struct Simbolo;
 
 struct Nodo {
     TipoNodo tipo;
     int      linea;
     int      columna;
     Nodo    *sig;       /* siguiente elemento, si el nodo esta en una lista */
+
+    /* Lo completa el analisis semantico (recorrido 1). En un uso de un
+     * nombre (N_ID, N_ACCESO, N_LLAMADA, N_ASIGNACION) apunta a la entrada
+     * de la tabla de simbolos que le corresponde; en una declaracion, a la
+     * entrada que crea. Asi las fases siguientes no vuelven a resolver
+     * nombres. El parser lo deja en NULL. */
+    struct Simbolo *simbolo;
 
     union {
         struct { Nodo *declaraciones; Nodo *principal; }      programa;

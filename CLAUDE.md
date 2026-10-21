@@ -47,7 +47,8 @@ Comandos del proyecto:
 - `make test` compila `tests/minimo.gc` y muestra el G-code.
 - `make tokens PROG=archivo.gc` vuelca los tokens; `make ast PROG=archivo.gc` imprime el árbol sintáctico.
 - `make clean` borra todo lo generado.
-- `./gcodec entrada.gc [-o salida.gcode] [--tokens | --ast]`. Devuelve 0 si compiló y 1 si hubo errores.
+- `make tabla PROG=archivo.gc` hace el análisis semántico e imprime la tabla de símbolos por alcance.
+- `./gcodec entrada.gc [-o salida.gcode] [--tokens | --ast | --tabla]`. Devuelve 0 si compiló y 1 si hubo errores. Las advertencias no cambian el código de salida. `--ast` no corre el análisis semántico.
 
 El repositorio tiene `.gitattributes` con finales de línea LF. No conviertas archivos a CRLF.
 
@@ -56,9 +57,12 @@ El repositorio tiene `.gitattributes` con finales de línea LF. No conviertas ar
 - `src/lexer.l`: analizador léxico. Lleva línea y columna y las pasa a bison por `yylloc`.
 - `src/parser.y`: gramática completa, construcción del árbol y mensajes de error de sintaxis (`parse.error custom` con LAC, recuperación con `error PUNTO_COMA`).
 - `src/ast.h` y `src/ast.c`: árbol sintáctico. Un único tipo `Nodo` con un campo `tipo` y una unión por clase de nodo; las listas se encadenan con `sig`; cada nodo guarda `linea` y `columna`. Hay constructores `ast_*`, `ast_imprimir` y `ast_liberar`.
-- `src/errores.c`: reporte centralizado con formato gcc, `archivo:linea:columna: error <fase>: mensaje`, y contador global `errores`. Ninguna fase imprime errores por su cuenta.
+- `src/errores.c`: reporte centralizado con formato gcc, `archivo:linea:columna: error <fase>: mensaje`, y contador global `errores`. También `advertencia()` y `nota()`, que no cuentan como error (las advertencias tienen su propio contador). Ninguna fase imprime errores por su cuenta.
+- `src/simbolos.c`: tabla de símbolos encadenada por alcance (libro, 2.7). Los alcances no se descartan al salir del bloque, porque el árbol apunta a sus entradas; se liberan todos con `simbolos_liberar()`.
+- `src/builtins.c`: la tabla de builtins como datos. `src/evaluador.c`: evaluación de expresiones constantes, compartida por los dos recorridos (el paso 5 la puede extender a variables).
+- `src/semantico.c`: primer recorrido (nombres, tipos, forma de las llamadas). Deja en `nodo->simbolo` la entrada de la tabla de cada uso y cada declaración. `src/posicion.c`: segundo recorrido desde `main`, con expansión en línea y desenrollado (posición conocida, límites, feedrate). Corre solo si el primero no dio errores.
 - `src/codegen.c`: hoy solo prólogo y epílogo. `src/main.c`: argumentos, orquestación de fases y código de salida. `src/tokens.c`: nombres de tokens para `--tokens`.
-- `tests/`: programas válidos y archivos `err_*.gc` con un error a propósito cada uno.
+- `tests/`: programas válidos y archivos `err_*.gc` con un error a propósito cada uno. La segunda línea de cada archivo nuevo dice qué se espera (`// Esperado: compila sin errores` o `// Esperado: error en la linea N: fragmento`). Los cinco tests léxicos y sintácticos del paso 3 no tienen ese encabezado y algunos dan dos errores en cascada.
 
 Convenciones:
 
@@ -79,9 +83,9 @@ Paso 2, análisis léxico: hecho. Palabras reservadas, ejes, operadores, número
 
 Paso 3, análisis sintáctico y árbol: hecho (commit 3e81e8d). Gramática completa sin conflictos, árbol con posiciones, modo `--ast`, errores de sintaxis en español con recuperación.
 
-Paso 4, análisis semántico: siguiente. Tabla de símbolos por alcance y los chequeos de la sección 8 de la especificación.
+Paso 4, análisis semántico: hecho. Tabla de símbolos por alcance, comprobación de tipos por síntesis, tabla de builtins y los chequeos de la sección 8 en dos recorridos. Cada chequeo tiene su `err_*.gc`. Las decisiones que tomó el grupo están en la especificación (secciones 5, 5.1, 8.1, 8.3, 8.4 y 8.5). No se pudo verificar con AddressSanitizer porque la PC con Cygwin no tiene Linux; queda pendiente correrlo en Linux.
 
-Paso 5, generación de G-code: desenrollado de `repeat`, expansión de procedimientos en línea, evaluación de expresiones, tabla de builtins con plantillas.
+Paso 5, generación de G-code: siguiente. Desenrollado de `repeat`, expansión de procedimientos en línea, evaluación de expresiones (incluidas las variables, y la condición de cada `if`, porque Marlin no tiene condicionales: se emite solo la rama que se toma), tabla de builtins con plantillas, y un comentario en el G-code donde el análisis dio advertencia.
 
 Paso 6, pruebas automatizadas: scripts que corren cada archivo de `tests/` y comparan código de salida, mensajes y G-code esperado, invocables desde el Makefile.
 
@@ -95,4 +99,8 @@ Al cerrar cada paso, actualizá esta sección y la sección Estado del README.
 - Precedencia de `not`: entre `and` y las comparaciones, como en la EBNF. `not a > 3` es `not (a > 3)`.
 - Exactamente un `main`: lo garantiza la gramática, así que es error sintáctico y no semántico.
 
-Siguen abiertas las cuatro preguntas para Ruidias de la sección 13 de la especificación.
+## Decisiones tomadas en el paso 4 (confirmadas por el grupo)
+
+Análisis conservador: el `if` une las dos ramas sin mirar la condición, y un límite que depende de una variable da advertencia. Dos recorridos, y el segundo solo si el primero no dio errores. Declarar antes de usar, para todo; sin recursión (la indirecta es imposible por esa regla, la directa es error). Ocultamiento permitido; parámetros e índice comparten alcance con su cuerpo; nombres de builtins reservados. Exactamente una máquina, primera declaración, con `limite_x`, `limite_y`, `limite_z` y `feedrate_max` obligatorios y mayores que 0, y campos extra libres. `F` se verifica contra `feedrate_max`. Expresión constante: literales, const, campos, índices y parámetros con argumento constante, nunca variables. Índice de `repeat` desde 0. Parámetros de solo lectura. `%` es resto real. `;` prohibido en `Message`.
+
+Siguen abiertas las preguntas para Ruidias de la sección 13 de la especificación (ahora son cinco).

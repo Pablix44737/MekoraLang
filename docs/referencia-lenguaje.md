@@ -10,7 +10,7 @@ machine: una máquina. Solo se usa como tipo de parámetro.
 
 ### machine
 
-Define una impresora y sus características. Se escribe una sola vez, fuera de los procedimientos.
+Define la impresora para la que se compila el programa. Es obligatoria, hay una sola y va primera, antes que cualquier otra declaración.
 
 ```
 machine Ender3 {
@@ -23,7 +23,7 @@ machine Ender3 {
 }
 ```
 
-Los campos los elige el programador, salvo los tres limite_*, que el compilador usa para verificar que ningún movimiento se salga de la cama. Se accede a un campo con punto: Ender3.limite_x
+Hay cuatro campos obligatorios: limite_x, limite_y y limite_z, con los que el compilador verifica que ningún movimiento se salga de la cama, y feedrate_max, con el que verifica que ninguna velocidad F supere la de la máquina. El resto de los campos los elige el programador. Se accede a un campo con punto: Ender3.limite_x
 
 ### const
 
@@ -46,6 +46,8 @@ procedure Preparar(m: machine) {
 
 Se invoca por su nombre: Preparar(Ender3);
 
+Los parámetros son de solo lectura. Un procedimiento solo puede llamar a los que están declarados más arriba en el archivo, y no puede llamarse a sí mismo: el compilador copia el cuerpo de cada procedimiento en el lugar de la llamada, y una llamada recursiva no terminaría nunca.
+
 ### main
 
 Punto de entrada del programa. Hay uno solo y es lo único que se ejecuta.
@@ -65,6 +67,8 @@ Declara una variable local al bloque. Se inicializa siempre.
 ```
 var vel : number = 1500;
 ```
+
+Un bloque interno puede declarar un nombre que ya existe afuera; dentro del bloque vale el de adentro.
 
 ### Asignación
 
@@ -145,14 +149,18 @@ Control y mantenimiento:
 Wait(segundos) pausa la ejecución.
 Fan(S:) fija la velocidad del ventilador, de 0 a 255. Con 0 lo apaga.
 DisableMotors() libera los motores para poder mover la máquina a mano.
-Message("texto") muestra un mensaje en la pantalla de la impresora.
+Message("texto") muestra un mensaje en la pantalla de la impresora. El texto no puede tener punto y coma, porque en G-code empieza un comentario.
 Raw("...") emite una línea de G-code tal cual, para comandos que el lenguaje no cubre.
 
-## Dos reglas a tener en cuenta
+## Reglas a tener en cuenta
 
 Hay que llamar a AutoHome() antes del primer Move o Draw. Al encender, la impresora no sabe dónde está el cabezal y el compilador rechaza cualquier movimiento hasta que se referencien los ejes.
 
 Después de DisableMotors() hace falta volver a llamar a AutoHome() antes de mover. Con los motores liberados el operario pudo haber corrido la máquina a mano, así que la posición anterior ya no vale.
+
+Después de un if, la posición se considera conocida solo si lo es al final de todas las ramas, sin importar cuál se vaya a tomar.
+
+Las coordenadas de Move y Draw tienen que estar entre 0 y el límite de la máquina, y F no puede superar feedrate_max. Si el valor depende de una variable, el compilador no lo puede verificar y avisa con una advertencia, pero compila igual.
 
 ## Lo que agrega el compilador
 

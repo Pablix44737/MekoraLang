@@ -1,0 +1,20 @@
+// DisableMotors en una sola rama de un if y Move despues. El analisis no
+// mira el valor de la condicion: une las dos ramas.
+// Esperado: error en la linea 19: despues del if de la linea 16 la posicion solo es conocida en una de las ramas
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const LIMPIAR : bool = true;
+
+main {
+    AutoHome();
+    if (LIMPIAR) {
+        DisableMotors();
+    }
+    Move(X: 10);
+}

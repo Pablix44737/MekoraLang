@@ -1,0 +1,80 @@
+// Programa de ejemplo de la seccion 9 de la especificacion, completo.
+// Preparar hace el AutoHome y BarridoCama mueve despues: el segundo
+// recorrido entra en cada llamada con la posicion que dejo la anterior.
+// Esperado: compila sin errores, con advertencias en las lineas 51 y 52 por F: vel
+
+// ---------- Definicion de maquina ----------
+machine Ender3 {
+    temp_extrusor: 210;
+    temp_cama: 60;
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const MARGEN : number = 10;
+// mm de filamento por mm de trayectoria (boquilla 0.4, capa 0.2, filamento 1.75)
+const FLUJO  : number = 0.033;
+
+// ---------- Mantenimiento ----------
+procedure Preparar(m: machine) {
+    SetBedTemp(m.temp_cama);
+    SetExtruderTemp(m.temp_extrusor);
+    WaitBedTemp(m.temp_cama);
+    WaitExtruderTemp(m.temp_extrusor);
+    AutoHome();
+}
+
+procedure PurgarBoquilla() {
+    repeat 5 {
+        Extrude(E: 10, F: 300);
+        Wait(2);
+    }
+}
+
+procedure LiberarParaMantenimiento() {
+    TurnOffHeaters();
+    Message("Motores liberados - mover a mano");
+    DisableMotors();
+}
+
+// ---------- Diagnostico ----------
+procedure TestEjes(m: machine) {
+    var vel : number = m.feedrate_max;
+
+    if (vel > 3000) {
+        vel = 3000;
+        Message("Feedrate limitado");
+    }
+
+    Move(X: MARGEN,               Y: MARGEN,               F: vel);
+    Move(X: m.limite_x - MARGEN,  Y: m.limite_y - MARGEN,  F: vel);
+    Move(Z: m.limite_z / 2, F: 1500);
+    AutoHome();
+}
+
+procedure BarridoCama(m: machine) {
+    repeat 4 as fila {
+        Move(X: MARGEN,               Y: MARGEN + fila * 50, F: m.feedrate_max);
+        Move(X: m.limite_x - MARGEN,  Y: MARGEN + fila * 50, F: m.feedrate_max);
+    }
+}
+
+// ---------- Pieza simple ----------
+procedure Cuadrado(origen_x: number, origen_y: number, lado: number) {
+    Move(X: origen_x, Y: origen_y, Z: 0.3, F: 3000);
+    Draw(X: origen_x + lado, Y: origen_y,        E: lado * FLUJO, F: 1200);
+    Draw(X: origen_x + lado, Y: origen_y + lado, E: lado * FLUJO, F: 1200);
+    Draw(X: origen_x,        Y: origen_y + lado, E: lado * FLUJO, F: 1200);
+    Draw(X: origen_x,        Y: origen_y,        E: lado * FLUJO, F: 1200);
+}
+
+// ---------- Programa principal ----------
+main {
+    Preparar(Ender3);
+    TestEjes(Ender3);
+    PurgarBoquilla();
+    BarridoCama(Ender3);
+    Cuadrado(80, 80, 40);
+}

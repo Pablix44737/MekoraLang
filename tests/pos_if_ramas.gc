@@ -1,0 +1,32 @@
+// Homing en todas las ramas de un if: despues del if la posicion es
+// conocida, aunque cada rama referencie los ejes de otra forma.
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const RAPIDO : bool = false;
+
+main {
+    if (RAPIDO) {
+        AutoHome();
+    } else {
+        AutoHome(X, Y);
+        AutoHome(Z);
+    }
+    Move(X: 10, Y: 10, Z: 5);
+
+    DisableMotors();
+    if (not RAPIDO) {
+        AutoHome();
+    } else if (RAPIDO) {
+        AutoHome(X, Y, Z);
+    } else {
+        AutoHome();
+    }
+    Move(X: 20);
+}

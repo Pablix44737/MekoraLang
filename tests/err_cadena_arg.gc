@@ -1,0 +1,13 @@
+// Un texto donde va un numero.
+// Esperado: error en la linea 12: el argumento 1 de 'Wait' tiene que ser number, no un texto
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    Wait("dos");
+}

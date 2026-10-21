@@ -1,0 +1,11 @@
+// A la maquina le falta un campo obligatorio.
+// Esperado: error en la linea 4: a la maquina 'Ender3' le falta el campo obligatorio 'feedrate_max'
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+}
+
+main {
+}

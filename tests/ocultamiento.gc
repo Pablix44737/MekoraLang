@@ -1,0 +1,37 @@
+// Ocultamiento de nombres con la regla del bloque anidado mas cercano.
+// Un bloque interno puede declarar un nombre que ya existe afuera: una
+// constante, un parametro o una variable.
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const ALTO : number = 10;
+
+procedure Subir(dz: number) {
+    var z : number = ALTO + dz;
+    {
+        var ALTO : number = 50;     // oculta la constante
+        var z : number = ALTO;      // oculta la z de afuera
+        var dz : number = 1;        // oculta el parametro
+        Message("bloque interno");
+    }
+    // Afuera del bloque, ALTO vuelve a ser la constante: Z = 10 + 5.
+    Move(Z: ALTO + dz);
+}
+
+main {
+    var i : number = 7;
+    AutoHome();
+    // El indice oculta a la variable i. Por eso X es constante y se
+    // verifica el limite sin advertencia: si "i" fuera la variable,
+    // habria una advertencia.
+    repeat 3 as i {
+        Move(X: 10 + i);
+    }
+    Subir(5);
+}
