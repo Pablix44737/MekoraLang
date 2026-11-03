@@ -64,13 +64,15 @@ simbolos, un alcance por bloque con sus declaraciones:
     src/tokens.c     nombres de los tokens, para el modo --tokens
     src/simbolos.c   tabla de simbolos por alcance
     src/builtins.c   tabla de builtins: parametros, efecto y plantilla de G-code
-    src/evaluador.c  evaluacion de expresiones constantes
+    src/evaluador.c  evaluacion de expresiones
     src/semantico.c  analisis semantico, primer recorrido: nombres y tipos
     src/posicion.c   analisis semantico, segundo recorrido: posicion y limites
+    src/recorrido.c  lo que comparten el segundo recorrido y la generacion
     src/errores.c    reporte de errores y advertencias con archivo, linea y columna
-    src/codegen.c    emision de G-code
+    src/codegen.c    generacion de G-code, tercer recorrido
     src/main.c       punto de entrada, argumentos y codigo de salida
     tests/           programas de prueba, validos y con errores
+    tests/esperado/  G-code esperado de cada programa valido
     docs/            especificacion y referencia del lenguaje
     build/           archivos generados, no se versiona
 
@@ -89,5 +91,12 @@ cada repeat, y verifica que no se mueva un eje sin posicion conocida y que
 ningun movimiento se salga de los limites de la maquina ni supere su
 velocidad maxima. Cada chequeo tiene su programa de prueba en `tests/`.
 
-Falta la generacion del cuerpo del programa. Por ahora un programa valido
-compila a solo el prologo y el epilogo.
+Generacion de G-code completa. Como G-code no tiene variables ni saltos y el
+lenguaje no tiene entradas, el compilador ejecuta el programa y escribe lo
+que la maquina haria: desenrolla cada repeat, expande cada procedimiento en
+el lugar de la llamada y de cada if emite solo la rama que se toma. Si un
+valor que depende de una variable resulta estar fuera de los limites, o hay
+una division por cero, es un error y no queda archivo de salida.
+
+Falta automatizar las pruebas. El G-code esperado de cada programa valido
+ya esta en `tests/esperado/`.

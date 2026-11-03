@@ -42,6 +42,14 @@ void error_semantico(int linea, int columna, const char *fmt, ...)
     va_end(args);
 }
 
+void error_generacion(int linea, int columna, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    reportar("error generacion", &errores, linea, columna, fmt, args);
+    va_end(args);
+}
+
 void advertencia(int linea, int columna, const char *fmt, ...)
 {
     va_list args;

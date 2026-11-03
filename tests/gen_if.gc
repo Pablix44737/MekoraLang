@@ -1,0 +1,31 @@
+// De un if se emite solo la rama que se toma. La rama de MODO == 1 no se
+// toma: su Move fuera de los limites da advertencia, pero no error.
+// Esperado: compila sin errores, con una advertencia en la linea 19
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const MODO : number = 2;
+
+main {
+    var x : number = 500;
+    AutoHome();
+    if (MODO == 1) {
+        Message("uno");
+        Move(X: x);
+    } else if (MODO == 2) {
+        Message("dos");
+    } else {
+        Message("tres");
+    }
+    if (false) {
+        Message("nunca");
+    }
+    if (MODO > 0) {
+        Fan(S: 100);
+    }
+}

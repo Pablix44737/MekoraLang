@@ -1,0 +1,33 @@
+// Las variables tienen valor al generar: se reasignan, y una var declarada
+// en un repeat se reinicia en cada vuelta. Cada coordenada que depende de
+// una variable da advertencia y lleva su comentario en el G-code.
+// Esperado: compila sin errores, con advertencias en las lineas 18, 22 y 26
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    var x : number = 10;
+    var activo : bool = x > 5;
+    AutoHome();
+    x = x * 2;
+    Move(X: x);
+    repeat 3 {
+        x = x + 5;
+    }
+    Move(X: x);
+    repeat 2 as i {
+        var y : number = 1;
+        y = y + i;
+        Move(Y: y);
+    }
+    if (activo and not (x > 100)) {
+        Move(Z: 1);
+    } else {
+        Move(Z: 2);
+    }
+}

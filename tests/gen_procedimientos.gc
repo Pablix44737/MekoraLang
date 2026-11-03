@@ -1,0 +1,38 @@
+// Expansion en linea: el mismo procedimiento con distintos argumentos,
+// llamadas anidadas, una var local nueva en cada llamada, y una var que
+// oculta a una constante. El comentario de la advertencia sale solo en la
+// llamada cuyo argumento depende de una variable, no en la ultima.
+// Esperado: compila sin errores, con una advertencia en la linea 17
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const ALTO : number = 5;
+
+procedure Subir(alto: number) {
+    Move(Z: alto);
+}
+
+procedure Tramo(desde: number, lado: number, m: machine) {
+    var fin : number = desde + lado;
+    Move(X: desde);
+    Subir(desde / 10);
+    if (fin > m.limite_x / 2) {
+        Message("lejos");
+    }
+}
+
+main {
+    AutoHome();
+    Tramo(10, 20, Ender3);
+    Tramo(100, 50, Ender3);
+    {
+        var ALTO : number = 9;
+        Subir(ALTO);
+    }
+    Subir(ALTO);
+}

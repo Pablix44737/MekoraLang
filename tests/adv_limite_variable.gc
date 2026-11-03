@@ -1,7 +1,7 @@
 // Un limite que depende de una variable no se puede verificar en
 // compilacion: es advertencia, no error. Aunque el repeat recorre el
 // cuerpo tres veces, la advertencia sale una sola vez.
-// Esperado: compila sin errores, con una advertencia en la linea 16
+// Esperado: compila sin errores, con una advertencia en la linea 17
 
 machine Ender3 {
     limite_x: 220;

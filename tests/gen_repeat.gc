@@ -1,0 +1,24 @@
+// Desenrollado: un repeat 0 no emite nada, el indice empieza en 0 y la
+// cantidad de un repeat interno puede depender del indice del externo.
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+const N : number = 2;
+
+main {
+    AutoHome();
+    repeat 0 {
+        Message("nunca");
+    }
+    repeat N as i {
+        repeat i + 1 as j {
+            Move(X: i * 10 + j);
+        }
+    }
+}

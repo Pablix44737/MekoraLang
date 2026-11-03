@@ -1,0 +1,18 @@
+// La muestra de salida de la seccion 10 de la especificacion.
+// Esperado: compila sin errores
+
+machine Ender3 { temp_extrusor: 210; temp_cama: 60;
+                 limite_x: 220; limite_y: 220; limite_z: 250;
+                 feedrate_max: 3000; }
+
+procedure PurgarBoquilla() {
+    repeat 3 {
+        Extrude(E: 10, F: 300);
+        Wait(2);
+    }
+}
+
+main {
+    AutoHome();
+    PurgarBoquilla();
+}

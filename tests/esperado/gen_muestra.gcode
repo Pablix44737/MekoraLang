@@ -1,0 +1,15 @@
+; Generado automaticamente - no editar
+G21
+G90
+M83
+G28
+G1 E10.000 F300.000
+G4 S2
+G1 E10.000 F300.000
+G4 S2
+G1 E10.000 F300.000
+G4 S2
+M104 S0
+M140 S0
+M107
+M84

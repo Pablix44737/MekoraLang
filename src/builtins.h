@@ -8,7 +8,7 @@
  * Cada builtin es una fila de datos: su nombre, los parametros que admite
  * y como se traduce a G-code. El analisis semantico valida las llamadas
  * recorriendo la fila, sin un caso por builtin, y la generacion de codigo
- * (paso 5) va a armar la linea de G-code a partir de la misma fila.
+ * arma la linea de G-code a partir de la misma fila.
  * Agregar un builtin cuesta una fila en builtins.c.
  * Ver especificacion, seccion 7. */
 

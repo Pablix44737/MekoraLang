@@ -1,0 +1,20 @@
+// El valor fuera de limites llega por un parametro: el error se marca
+// adentro del procedimiento, con la nota de la llamada.
+// Esperado: error en la linea 13: Z = 300 esta fuera de los limites
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+procedure Subir(alto: number) {
+    Move(Z: alto);
+}
+
+main {
+    var a : number = 300;
+    AutoHome();
+    Subir(a);
+}

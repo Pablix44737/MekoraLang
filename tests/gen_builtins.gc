@@ -1,0 +1,31 @@
+// Todos los builtins. Los parametros salen en el orden de la tabla, sin
+// importar como se escribieron, y S sale sin decimales si es entero.
+// Esperado: compila sin errores
+
+machine Ender3 {
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 3000;
+}
+
+main {
+    SetExtruderTemp(200);
+    WaitExtruderTemp(200.5);
+    SetBedTemp(60);
+    WaitBedTemp(60);
+    AutoHome(Y, X);
+    AutoHome();
+    Move(F: 1500, Z: 5, Y: 20.5, X: 10);
+    Draw(E: 0.0333, X: 30);
+    Extrude(E: 5);
+    Extrude(E: -2, F: 300);
+    Extrude(E: 0 * -1);
+    Wait(0.5);
+    Fan(S: 255);
+    Fan(S: 0);
+    Message("Hola mundo");
+    Raw("M420 S1 ; nivelacion");
+    TurnOffHeaters();
+    DisableMotors();
+}

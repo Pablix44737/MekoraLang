@@ -6,6 +6,7 @@
 #include "codegen.h"
 #include "errores.h"
 #include "posicion.h"
+#include "recorrido.h"
 #include "semantico.h"
 #include "simbolos.h"
 #include "tokens.h"
@@ -29,6 +30,7 @@ static void uso(const char *prog)
 static void liberar_todo(void)
 {
     ast_liberar(arbol);
+    recorrido_liberar();
     simbolos_liberar();
 }
 
@@ -145,10 +147,19 @@ int main(int argc, char **argv)
     }
 
     emitir_prologo(salida);
-    /* Paso 5: recorrer el arbol a partir de main y emitir el G-code. */
+    generar(arbol, salida);
     emitir_epilogo(salida);
-
     fclose(salida);
+
+    /* La generacion conoce valores que el analisis no: puede encontrar un
+     * error. Ese G-code no se le puede dar a la maquina, asi que no queda. */
+    if (errores > 0) {
+        remove(ruta_salida);
+        fprintf(stderr, "Compilacion fallida: %d error(es).\n", errores);
+        liberar_todo();
+        return 1;
+    }
+
     liberar_todo();
 
     if (advertencias > 0)

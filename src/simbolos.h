@@ -59,8 +59,9 @@ struct Simbolo {
     /* Valor en compilacion. Las constantes y los campos lo tienen fijo
      * desde el primer recorrido. Los parametros y los indices de repeat
      * lo reciben en el segundo, en cada llamada o en cada vuelta, y lo
-     * pierden al salir. Las variables nunca lo tienen. Los bool se
-     * guardan como 0 o 1. */
+     * pierden al salir. Las variables no lo tienen durante el analisis:
+     * lo reciben recien en la generacion, que ejecuta el programa. Los
+     * bool se guardan como 0 o 1. */
     int     conocido;
     double  valor;
 

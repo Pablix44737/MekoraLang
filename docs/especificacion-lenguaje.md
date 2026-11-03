@@ -1,4 +1,4 @@
-# Especificación del lenguaje (v5) — DSL de alto nivel → G-code
+# Especificación del lenguaje (v6) — DSL de alto nivel → G-code
 
 Decisiones cerradas: palabras reservadas en inglés y minúscula; estructuras de control limitadas a `if/else` + `repeat N`; vínculo con la máquina por parámetro explícito (sin `LoadMachine`); sin funciones con valor de retorno; modos de posicionamiento y extrusión fijados por el compilador; sin builtins de consulta al host; **tabla de builtins derivada de las operaciones del dominio, no de los comandos G-code**.
 
@@ -158,7 +158,7 @@ En Bison, la precedencia puede declararse con `%left` / `%right` en lugar de est
 
 ## 5. Sistema de tipos
 
-Tres tipos: `number` (real, se emite con 3 decimales), `bool`, `machine`.
+Tres tipos: `number` (real), `bool`, `machine`. Cómo se escribe un número en el G-code está en la sección 10.1.
 
 - No hay tipo `string`: las cadenas existen únicamente como literal argumento de builtins (`Message`, `Raw`).
 - No hay conversión implícita entre `number` y `bool`.
@@ -170,7 +170,7 @@ El tipo de cada expresión se calcula a partir de los tipos de sus partes:
 - `+ - * / %` y el menos unario se aplican a `number` y dan `number`. `%` es el resto real: `7.5 % 2` vale 1.5.
 - `< > <= >=` comparan dos `number` y dan `bool`.
 - `==` y `!=` comparan dos `number` o dos `bool` y dan `bool`.
-- `and`, `or` y `not` se aplican a `bool` y dan `bool`.
+- `and`, `or` y `not` se aplican a `bool` y dan `bool`. `and` y `or` evalúan siempre los dos lados: no hay cortocircuito, así que en `x != 0 and 10 / x > 1` con `x` en 0 hay una división por cero.
 
 Una división o un resto por cero en una expresión que se evalúa al compilar es un error.
 
@@ -194,7 +194,7 @@ Como hay una sola máquina, un parámetro de tipo `machine` siempre es esa máqu
 **El programador no elige ni puede cambiar el modo de posicionamiento ni el de extrusión.** El compilador los fija en un prólogo que emite siempre:
 
 ```gcode
-; Generado automáticamente — no editar
+; Generado automaticamente - no editar
 G21          ; unidades en milímetros
 G90          ; posicionamiento absoluto (X, Y, Z)
 M83          ; extrusión relativa (E)
@@ -296,7 +296,7 @@ El compilador mantiene, por cada eje, un booleano **"posición conocida"**. Tres
 
 En un `if`, la posición de un eje queda en verdadero después del condicional solo si lo está en **todas** las ramas (es el join conservador de un análisis de flujo de datos; en el informe conviene nombrarlo así).
 
-El análisis no mira el valor de la condición: recorre las dos ramas aunque la condición sea una constante. Es una decisión, no una limitación. El lenguaje no tiene entradas, así que en la generación (paso 5) toda condición se puede evaluar, y como Marlin no tiene condicionales en G-code el generador va a emitir solo la rama que se toma. Pero el análisis semántico no depende de esos valores: la garantía que da vale para cualquier valor de la condición, y seguiría valiendo si el lenguaje algún día tuviera entradas.
+El análisis no mira el valor de la condición: recorre las dos ramas aunque la condición sea una constante. Es una decisión, no una limitación. El lenguaje no tiene entradas, así que en la generación toda condición se puede evaluar, y como Marlin no tiene condicionales en G-code el generador emite solo la rama que se toma (sección 10.1). Pero el análisis semántico no depende de esos valores: la garantía que da vale para cualquier valor de la condición, y seguiría valiendo si el lenguaje algún día tuviera entradas.
 
 Las llamadas a procedimientos se analizan como si el cuerpo estuviera escrito en el lugar de la llamada, que es lo que hace el generador. El análisis empieza en `main` y, en cada llamada, entra al procedimiento con el estado de los tres ejes en ese punto y sale con el que deja el cuerpo. Por eso en el ejemplo de la sección 9 `Preparar` puede hacer el `AutoHome()` y `BarridoCama` mover después. Si el error está dentro de un procedimiento, el mensaje se marca en la sentencia de adentro y lo siguen notas que dicen desde qué llamadas se llegó.
 
@@ -344,7 +344,7 @@ Chequeos que se agregaron en el paso 4, al resolver los casos que la lista anter
 Con el posicionamiento fijado en absoluto, el argumento de cada `Move` / `Draw` es directamente la coordenada destino:
 
 - Si el argumento es una **expresión constante**: se evalúa y se emite **error de compilación** si queda fuera de `[0, limite_eje]`.
-- Si depende de una variable no determinable estáticamente: **advertencia**, y se emite un comentario en el G-code generado.
+- Si depende de una variable: **advertencia**, y se emite un comentario en el G-code generado. Al generar, el valor real ya se conoce: si queda fuera de rango es un error (sección 10.2).
 
 Lo mismo vale para todo `F:` (en `Move`, `Draw` y `Extrude`), que tiene que ser mayor que 0 y no superar `feedrate_max`.
 
@@ -520,7 +520,7 @@ main {
 G-code generado:
 
 ```gcode
-; Generado automáticamente — no editar
+; Generado automaticamente - no editar
 G21
 G90
 M83
@@ -538,6 +538,33 @@ M84
 ```
 
 El contraste entre el bucle explícito del fuente y su desenrollado en la salida —más el prólogo y el epílogo que el programador nunca escribió— es el mejor material para la introducción del informe y para la demo de la defensa.
+
+### 10.1 Cómo se genera
+
+G-code no tiene variables, saltos ni condicionales, y el lenguaje no tiene entradas, así que todo valor se conoce al compilar. Generar es ejecutar el programa en el compilador y escribir lo que la máquina haría. Es un tercer recorrido del árbol, que empieza en `main` y corre solo si el análisis terminó sin errores:
+
+- Un `repeat` se desenrolla: su cuerpo se emite una vez por vuelta.
+- Un procedimiento se expande en el lugar de cada llamada.
+- Una variable guarda su valor en su entrada de la tabla de símbolos. Alcanza con una sola, porque no hay recursión. Una `var` declarada dentro de un `repeat` se reinicia en cada vuelta.
+- De un `if` se evalúa la condición y se emite solo la rama que se toma.
+- Cada builtin sale de su fila en la tabla: la plantilla y, en el orden de la tabla, los parámetros presentes. `Move(Y: 2, X: 1)` da `G1 X1.000 Y2.000`.
+
+No hay código intermedio: del árbol se pasa directo a G-code.
+
+`X`, `Y`, `Z`, `E` y `F` salen con 3 decimales. `S` (temperatura, segundos, ventilador) sale sin decimales si es entero y con 3 si no lo es: `M140 S60`, `G4 S0.500`.
+
+Donde el análisis dio una advertencia, antes de la línea se emite un comentario por cada argumento, por ejemplo `; advertencia (linea 39): F depende de una variable`. Si un procedimiento se llama con un argumento variable y otro constante, el comentario sale solo en la expansión que corresponde.
+
+### 10.2 Errores de generación
+
+El análisis no conoce el valor de las variables, pero la generación sí. Hay dos errores que aparecen recién acá, con la clase `error generacion`:
+
+- Un valor que depende de una variable y queda fuera de los límites, o un `F` que no cumple con `feedrate_max`. El análisis dio la advertencia, y al generar se ve que el valor real está mal.
+- Una división o un resto por cero que depende de una variable.
+
+Se informan una vez por sentencia y por cadena de llamadas, como en el segundo recorrido. Si hay un error, no queda archivo de salida y el compilador devuelve 1: ese G-code no se le puede dar a la máquina.
+
+Una rama que no se toma nunca se ejecuta, así que un valor variable fuera de rango en esa rama no es error de generación. Un valor constante fuera de rango sí es error en cualquier rama, porque el análisis no mira la condición (sección 8.1).
 
 ---
 
@@ -604,6 +631,24 @@ Casos de error agregados en el paso 4, por las decisiones de las secciones 5.1, 
 | `err_div_cero.gc` | `10 / 0` en una constante |
 | `err_no_procedimiento.gc` | llamada a una variable |
 
+Casos agregados en el paso 5, por la generación (sección 10). De cada programa válido hay un G-code esperado en `tests/esperado/`. El de los casos `gen_*` se escribió a mano, sin mirar la salida del compilador; el de los demás se guardó después de revisarlo contra su fuente.
+
+| Archivo | Qué prueba |
+|---|---|
+| `gen_muestra.gc` | la muestra de esta sección 10, línea por línea |
+| `gen_builtins.gc` | todos los builtins, el orden de los parámetros y el formato de los números |
+| `gen_variables.gc` | reasignación, `var` que se reinicia en cada vuelta, comentarios de advertencia |
+| `gen_if.gc` | solo se emite la rama que se toma, incluso con `else if` |
+| `gen_repeat.gc` | `repeat 0`, índice desde 0, cantidad que depende de otro índice |
+| `gen_procedimientos.gc` | expansión con distintos argumentos, llamadas anidadas, ocultamiento |
+| `err_gen_limite_variable.gc` | una variable que vale 500 con `limite_x: 220` |
+| `err_gen_feedrate_variable.gc` | `F: vel` con `vel` en 5000 |
+| `err_gen_feedrate_cero.gc` | `F: vel` con `vel` en 0 |
+| `err_gen_limite_indice.gc` | una variable que se pasa del límite en una vuelta; el error sale una vez |
+| `err_gen_proc.gc` | el valor llega por un parámetro, con la nota de la llamada |
+| `err_gen_div_cero.gc` | división por una variable que vale 0 |
+| `err_gen_sin_cortocircuito.gc` | `x != 0 and 10 / x > 1` con `x` en 0 |
+
 ---
 
 ## 12. Trabajo futuro (sección del informe LNCS)
@@ -614,6 +659,7 @@ Extensiones identificadas y deliberadamente excluidas:
 - **Movimiento relativo con análisis de posición determinada.** Un builtin tipo `MoveRelative(Z: 5)` es implementable manteniendo `G90`: el compilador rastrea la posición absoluta y emite la coordenada calculada. La restricción interesante es que solo sería legal donde la posición es estáticamente determinada — la misma maquinaria de flujo de datos ya usada en el chequeo de la sección 8.1, extendida de "conocida / desconocida" a un valor concreto.
 - **Cálculo automático de flujo.** Hoy el programador escribe `E: lado * FLUJO`. El compilador podría derivar el valor de E a partir del diámetro de boquilla, la altura de capa y el diámetro de filamento declarados en el bloque `machine`, quitándole ese cálculo al usuario.
 - **Funciones con valor de retorno** y un sistema de tipos más rico.
+- **Rangos de temperatura, ventilador y pausa.** Hoy `Fan(S: 300)`, `SetBedTemp(-5)` y `Wait(-1)` compilan: el compilador verifica los límites de los ejes y el feedrate, pero no estos valores, que quedan a cargo del firmware. Verificarlos pediría campos nuevos en la máquina, como las temperaturas máximas.
 - **Múltiples perfiles de máquina** con verificación cruzada de portabilidad del mismo programa.
 
 ---
@@ -624,4 +670,4 @@ Extensiones identificadas y deliberadamente excluidas:
 2. Si acepta el desenrollado del `repeat` como estrategia de generación, o si prefiere un backend intérprete.
 3. Si la decisión de fijar los modos de posicionamiento y extrusión en el compilador le parece una simplificación válida o una pérdida de expresividad.
 4. Si el análisis de posición conocida (sección 8.1) le resulta suficiente como aporte de análisis de flujo de datos, o si espera ver algo más.
-5. Si le parece bien que el análisis semántico sea conservador aunque el programa no tenga entradas. Como todo valor se conoce al compilar y Marlin no tiene condicionales, el generador va a evaluar cada `if` y emitir una sola rama; el análisis, en cambio, une las dos ramas sin mirar la condición (sección 8.1). Se relaciona con la pregunta 2.
+5. Si le parece bien que el análisis semántico sea conservador aunque el programa no tenga entradas. Como todo valor se conoce al compilar y Marlin no tiene condicionales, el generador evalúa cada `if` y emite una sola rama; el análisis, en cambio, une las dos ramas sin mirar la condición (sección 8.1). Se relaciona con la pregunta 2.

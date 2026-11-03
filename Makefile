@@ -15,7 +15,7 @@ BUILD = build
 
 OBJS = $(BUILD)/parser.tab.o $(BUILD)/lex.yy.o $(BUILD)/main.o $(BUILD)/codegen.o $(BUILD)/errores.o $(BUILD)/tokens.o \
        $(BUILD)/ast.o $(BUILD)/simbolos.o $(BUILD)/builtins.o $(BUILD)/evaluador.o \
-       $(BUILD)/semantico.o $(BUILD)/posicion.o
+       $(BUILD)/semantico.o $(BUILD)/posicion.o $(BUILD)/recorrido.o
 
 .PHONY: all clean test tokens ast tabla
 

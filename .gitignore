@@ -64,3 +64,5 @@ gcodec
 
 # G-code generado en las pruebas
 *.gcode
+# ...salvo la salida esperada de las pruebas
+!tests/esperado/*.gcode

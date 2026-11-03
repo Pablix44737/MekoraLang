@@ -9,10 +9,13 @@
  * cada nombre apuntando a su entrada de la tabla de simbolos). Una
  * expresion es constante si solo usa literales, constantes, campos de la
  * maquina, indices de repeat y parametros cuyo argumento fue constante en
- * la llamada (especificacion, seccion 8.3). Las variables nunca lo son,
- * aunque se pueda deducir su valor, porque se pueden reasignar.
+ * la llamada (especificacion, seccion 8.3). Durante el analisis las
+ * variables nunca lo son, aunque se pueda deducir su valor, porque se
+ * pueden reasignar. En la generacion cada variable tiene su valor en la
+ * tabla de simbolos, asi que la misma funcion las evalua sin cambios.
  *
- * Los bool se representan con 0 y 1. */
+ * Los bool se representan con 0 y 1. and y or evaluan siempre los dos
+ * lados: no hay cortocircuito. */
 
 typedef enum {
     EVAL_OK,             /* *valor tiene el resultado                    */

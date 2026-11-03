@@ -23,6 +23,7 @@ extern const char *archivo_entrada;   /* nombre del archivo fuente */
 void error_lexico   (int linea, int columna, const char *fmt, ...);
 void error_sintactico(int linea, int columna, const char *fmt, ...);
 void error_semantico (int linea, int columna, const char *fmt, ...);
+void error_generacion(int linea, int columna, const char *fmt, ...);
 
 void advertencia(int linea, int columna, const char *fmt, ...);
 void nota       (int linea, int columna, const char *fmt, ...);

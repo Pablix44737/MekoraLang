@@ -160,7 +160,7 @@ Después de DisableMotors() hace falta volver a llamar a AutoHome() antes de mov
 
 Después de un if, la posición se considera conocida solo si lo es al final de todas las ramas, sin importar cuál se vaya a tomar.
 
-Las coordenadas de Move y Draw tienen que estar entre 0 y el límite de la máquina, y F no puede superar feedrate_max. Si el valor depende de una variable, el compilador no lo puede verificar y avisa con una advertencia, pero compila igual.
+Las coordenadas de Move y Draw tienen que estar entre 0 y el límite de la máquina, y F no puede superar feedrate_max. Si el valor depende de una variable, el análisis no lo puede verificar y avisa con una advertencia. Después, al generar el G-code, el compilador ya conoce el valor real: si se pasa, es un error y no se genera el archivo.
 
 ## Lo que agrega el compilador
 

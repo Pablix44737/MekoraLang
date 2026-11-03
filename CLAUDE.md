@@ -59,10 +59,11 @@ El repositorio tiene `.gitattributes` con finales de línea LF. No conviertas ar
 - `src/ast.h` y `src/ast.c`: árbol sintáctico. Un único tipo `Nodo` con un campo `tipo` y una unión por clase de nodo; las listas se encadenan con `sig`; cada nodo guarda `linea` y `columna`. Hay constructores `ast_*`, `ast_imprimir` y `ast_liberar`.
 - `src/errores.c`: reporte centralizado con formato gcc, `archivo:linea:columna: error <fase>: mensaje`, y contador global `errores`. También `advertencia()` y `nota()`, que no cuentan como error (las advertencias tienen su propio contador). Ninguna fase imprime errores por su cuenta.
 - `src/simbolos.c`: tabla de símbolos encadenada por alcance (libro, 2.7). Los alcances no se descartan al salir del bloque, porque el árbol apunta a sus entradas; se liberan todos con `simbolos_liberar()`.
-- `src/builtins.c`: la tabla de builtins como datos. `src/evaluador.c`: evaluación de expresiones constantes, compartida por los dos recorridos (el paso 5 la puede extender a variables).
+- `src/builtins.c`: la tabla de builtins como datos. `src/evaluador.c`: evaluación de expresiones, compartida por todos los recorridos. Una variable se evalúa solo si tiene valor, y lo tiene recién en la generación.
 - `src/semantico.c`: primer recorrido (nombres, tipos, forma de las llamadas). Deja en `nodo->simbolo` la entrada de la tabla de cada uso y cada declaración. `src/posicion.c`: segundo recorrido desde `main`, con expansión en línea y desenrollado (posición conocida, límites, feedrate). Corre solo si el primero no dio errores.
-- `src/codegen.c`: hoy solo prólogo y epílogo. `src/main.c`: argumentos, orquestación de fases y código de salida. `src/tokens.c`: nombres de tokens para `--tokens`.
-- `tests/`: programas válidos y archivos `err_*.gc` con un error a propósito cada uno. La segunda línea de cada archivo nuevo dice qué se espera (`// Esperado: compila sin errores` o `// Esperado: error en la linea N: fragmento`). Los cinco tests léxicos y sintácticos del paso 3 no tienen ese encabezado y algunos dan dos errores en cascada.
+- `src/recorrido.c`: lo que comparten el segundo recorrido y la generación: pila de llamadas, ligado de parámetros, valor de los índices, datos de la máquina, verificación de límites y feedrate, y registro de lo ya reportado. Se libera con `recorrido_liberar()`.
+- `src/codegen.c`: tercer recorrido desde `main`. Ejecuta el programa en el compilador y emite el G-code; de cada `if` emite solo la rama que se toma. Corre solo si el análisis no dio errores. Sus errores (`error_generacion`) son valores que dependen de una variable. `src/main.c`: argumentos, orquestación de fases y código de salida; si la generación da error, borra la salida. `src/tokens.c`: nombres de tokens para `--tokens`.
+- `tests/`: programas válidos y archivos `err_*.gc` con un error a propósito cada uno; `gen_*.gc` y `err_gen_*.gc` prueban la generación. La segunda línea de cada archivo nuevo dice qué se espera (`// Esperado: compila sin errores` o `// Esperado: error en la linea N: fragmento`), o una de las siguientes si hay más comentarios arriba. Los cinco tests léxicos y sintácticos del paso 3 no tienen ese encabezado y algunos dan dos errores en cascada. `tests/esperado/` tiene el G-code esperado de cada programa válido; el de `gen_*` se escribió a mano. `.gitignore` ignora `*.gcode` salvo esa carpeta.
 
 Convenciones:
 
@@ -85,9 +86,9 @@ Paso 3, análisis sintáctico y árbol: hecho (commit 3e81e8d). Gramática compl
 
 Paso 4, análisis semántico: hecho. Tabla de símbolos por alcance, comprobación de tipos por síntesis, tabla de builtins y los chequeos de la sección 8 en dos recorridos. Cada chequeo tiene su `err_*.gc`. Las decisiones que tomó el grupo están en la especificación (secciones 5, 5.1, 8.1, 8.3, 8.4 y 8.5). No se pudo verificar con AddressSanitizer porque la PC con Cygwin no tiene Linux; queda pendiente correrlo en Linux.
 
-Paso 5, generación de G-code: siguiente. Desenrollado de `repeat`, expansión de procedimientos en línea, evaluación de expresiones (incluidas las variables, y la condición de cada `if`, porque Marlin no tiene condicionales: se emite solo la rama que se toma), tabla de builtins con plantillas, y un comentario en el G-code donde el análisis dio advertencia.
+Paso 5, generación de G-code: hecho. Desenrollado de `repeat`, expansión de procedimientos en línea, evaluación de expresiones con variables, solo la rama que se toma de cada `if`, builtins desde la tabla y un comentario en el G-code donde el análisis dio advertencia. Las decisiones están en la especificación (secciones 5, 8.3, 10.1, 10.2 y 12). AddressSanitizer sigue pendiente, por la misma razón que en el paso 4.
 
-Paso 6, pruebas automatizadas: scripts que corren cada archivo de `tests/` y comparan código de salida, mensajes y G-code esperado, invocables desde el Makefile.
+Paso 6, pruebas automatizadas: siguiente. Scripts que corren cada archivo de `tests/` y comparan código de salida, mensajes y G-code esperado (`tests/esperado/`), invocables desde el Makefile.
 
 Calendario propuesto: paso 4 hasta el 25/10, paso 5 hasta el 1/11, paso 6 e informe hasta el 8/11, margen y ensayo hasta el 14/11.
 
@@ -102,5 +103,9 @@ Al cerrar cada paso, actualizá esta sección y la sección Estado del README.
 ## Decisiones tomadas en el paso 4 (confirmadas por el grupo)
 
 Análisis conservador: el `if` une las dos ramas sin mirar la condición, y un límite que depende de una variable da advertencia. Dos recorridos, y el segundo solo si el primero no dio errores. Declarar antes de usar, para todo; sin recursión (la indirecta es imposible por esa regla, la directa es error). Ocultamiento permitido; parámetros e índice comparten alcance con su cuerpo; nombres de builtins reservados. Exactamente una máquina, primera declaración, con `limite_x`, `limite_y`, `limite_z` y `feedrate_max` obligatorios y mayores que 0, y campos extra libres. `F` se verifica contra `feedrate_max`. Expresión constante: literales, const, campos, índices y parámetros con argumento constante, nunca variables. Índice de `repeat` desde 0. Parámetros de solo lectura. `%` es resto real. `;` prohibido en `Message`.
+
+## Decisiones tomadas en el paso 5 (confirmadas por el grupo)
+
+Un valor que depende de una variable y al generar queda fuera de límites o de feedrate es error de generación, y no queda archivo de salida; la advertencia del análisis se mantiene. `X`, `Y`, `Z`, `E` y `F` salen con 3 decimales; `S` sale sin decimales si es entero. `and` y `or` evalúan siempre los dos lados, sin cortocircuito. Los rangos de temperatura, ventilador y `Wait` no se verifican: queda documentado como trabajo futuro.
 
 Siguen abiertas las preguntas para Ruidias de la sección 13 de la especificación (ahora son cinco).
