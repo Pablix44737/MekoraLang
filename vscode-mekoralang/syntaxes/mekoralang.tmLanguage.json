@@ -1,0 +1,85 @@
+{
+  "name": "MekoraLang",
+  "scopeName": "source.mekoralang",
+  "fileTypes": ["gc"],
+  "patterns": [
+    { "include": "#comentario" },
+    { "include": "#cadena" },
+    { "include": "#declaracion" },
+    { "include": "#palabras" },
+    { "include": "#builtins" },
+    { "include": "#ejes" },
+    { "include": "#numero" },
+    { "include": "#llamada" },
+    { "include": "#campo" },
+    { "include": "#operadores" }
+  ],
+  "repository": {
+    "comentario": {
+      "name": "comment.line.double-slash.mekoralang",
+      "match": "//.*$"
+    },
+    "cadena": {
+      "name": "string.quoted.double.mekoralang",
+      "match": "\"[^\"\\n]*\"?"
+    },
+    "declaracion": {
+      "patterns": [
+        {
+          "match": "\\b(machine)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.machine.mekoralang" },
+            "2": { "name": "entity.name.type.mekoralang" }
+          }
+        },
+        {
+          "match": "\\b(procedure)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.procedure.mekoralang" },
+            "2": { "name": "entity.name.function.mekoralang" }
+          }
+        }
+      ]
+    },
+    "palabras": {
+      "patterns": [
+        { "name": "keyword.control.mekoralang", "match": "\\b(if|else|repeat|as)\\b" },
+        { "name": "storage.type.mekoralang", "match": "\\b(machine|procedure|main|const|var)\\b" },
+        { "name": "support.type.mekoralang", "match": "\\b(number|bool)\\b" },
+        { "name": "constant.language.mekoralang", "match": "\\b(true|false)\\b" },
+        { "name": "keyword.operator.logical.mekoralang", "match": "\\b(and|or|not)\\b" }
+      ]
+    },
+    "builtins": {
+      "name": "support.function.builtin.mekoralang",
+      "match": "\\b(Move|Draw|Extrude|AutoHome|SetExtruderTemp|WaitExtruderTemp|SetBedTemp|WaitBedTemp|TurnOffHeaters|Wait|Fan|DisableMotors|Message|Raw)\\b"
+    },
+    "ejes": {
+      "name": "variable.parameter.eje.mekoralang",
+      "match": "\\b[XYZEFS]\\b"
+    },
+    "numero": {
+      "name": "constant.numeric.mekoralang",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "llamada": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "entity.name.function.mekoralang" }
+      }
+    },
+    "campo": {
+      "match": "\\.([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "variable.other.property.mekoralang" }
+      }
+    },
+    "operadores": {
+      "patterns": [
+        { "name": "keyword.operator.comparison.mekoralang", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.assignment.mekoralang", "match": "=" },
+        { "name": "keyword.operator.arithmetic.mekoralang", "match": "[-+*/%]" }
+      ]
+    }
+  }
+}

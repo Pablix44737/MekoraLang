@@ -1,0 +1,31 @@
+{
+  "name": "mekoralang",
+  "displayName": "MekoraLang",
+  "description": "Colores para programas MekoraLang (.gc)",
+  "version": "0.1.0",
+  "publisher": "mekoralang-ugd",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "mekoralang",
+        "aliases": ["MekoraLang", "mekoralang"],
+        "extensions": [".gc"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mekoralang",
+        "scopeName": "source.mekoralang",
+        "path": "./syntaxes/mekoralang.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -74,6 +74,7 @@ simbolos, un alcance por bloque con sus declaraciones:
     src/main.c       punto de entrada, argumentos y codigo de salida
     tests/           programas de prueba, validos y con errores
     tests/esperado/  G-code esperado de cada programa valido
+    vscode-mekoralang/  colores para los .gc en VS Code (ver su README)
     docs/            especificacion y referencia del lenguaje
     build/           archivos generados, no se versiona
 
