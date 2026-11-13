@@ -48,6 +48,7 @@ simbolos, un alcance por bloque con sus declaraciones:
 ## Probar
 
     make test      compila tests/minimo.gc y muestra el G-code generado
+    make pruebas   corre todos los programas de tests/ y los compara
     make tokens    vuelca los tokens de tests/ejemplo.gc
     make ast       imprime el arbol de tests/ejemplo.gc
     make tabla     imprime la tabla de simbolos de tests/ejemplo.gc
@@ -98,5 +99,7 @@ el lugar de la llamada y de cada if emite solo la rama que se toma. Si un
 valor que depende de una variable resulta estar fuera de los limites, o hay
 una division por cero, es un error y no queda archivo de salida.
 
-Falta automatizar las pruebas. El G-code esperado de cada programa valido
-ya esta en `tests/esperado/`.
+Pruebas automatizadas: `make pruebas` corre los 79 programas de `tests/`.
+Cada uno dice en su encabezado que se espera, y el script verifica el
+codigo de salida, la linea y el texto de cada error, las advertencias y,
+en los programas validos, el G-code contra `tests/esperado/`.

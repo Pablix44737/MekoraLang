@@ -45,6 +45,7 @@ Comandos del proyecto:
 
 - `make` construye `gcodec`. Todo lo generado va a `build/`, que no se versiona.
 - `make test` compila `tests/minimo.gc` y muestra el G-code.
+- `make pruebas` corre `tests/correr_pruebas.sh`: compila cada programa de `tests/` y lo compara con su encabezado `// Esperado:` (código de salida, línea y fragmento del error, notas, líneas con advertencia) y, si es válido, con `tests/esperado/`. Devuelve 0 si pasan todas.
 - `make tokens PROG=archivo.gc` vuelca los tokens; `make ast PROG=archivo.gc` imprime el árbol sintáctico.
 - `make clean` borra todo lo generado.
 - `make tabla PROG=archivo.gc` hace el análisis semántico e imprime la tabla de símbolos por alcance.
@@ -88,7 +89,7 @@ Paso 4, análisis semántico: hecho. Tabla de símbolos por alcance, comprobaci�
 
 Paso 5, generación de G-code: hecho. Desenrollado de `repeat`, expansión de procedimientos en línea, evaluación de expresiones con variables, solo la rama que se toma de cada `if`, builtins desde la tabla y un comentario en el G-code donde el análisis dio advertencia. Las decisiones están en la especificación (secciones 5, 8.3, 10.1, 10.2 y 12). AddressSanitizer sigue pendiente, por la misma razón que en el paso 4.
 
-Paso 6, pruebas automatizadas: siguiente. Scripts que corren cada archivo de `tests/` y comparan código de salida, mensajes y G-code esperado (`tests/esperado/`), invocables desde el Makefile.
+Paso 6, pruebas automatizadas: hecho. `make pruebas` corre los 79 programas de `tests/` con `tests/correr_pruebas.sh` y los compara con lo esperado. Un programa nuevo solo necesita su encabezado `// Esperado:` y, si es válido, su salida en `tests/esperado/`.
 
 Calendario propuesto: paso 4 hasta el 25/10, paso 5 hasta el 1/11, paso 6 e informe hasta el 8/11, margen y ensayo hasta el 14/11.
 

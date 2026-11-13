@@ -14,7 +14,7 @@ OBJS = $(BUILD)/parser.tab.o $(BUILD)/lex.yy.o $(BUILD)/main.o $(BUILD)/codegen.
        $(BUILD)/ast.o $(BUILD)/simbolos.o $(BUILD)/builtins.o $(BUILD)/evaluador.o \
        $(BUILD)/semantico.o $(BUILD)/posicion.o $(BUILD)/recorrido.o
 
-.PHONY: all clean test tokens ast tabla
+.PHONY: all clean test pruebas tokens ast tabla
 
 all: $(BIN)
 
@@ -49,6 +49,10 @@ test: $(BIN)
 	./$(BIN) tests/minimo.gc -o $(BUILD)/minimo.gcode
 	@echo "--- salida ---"
 	@cat $(BUILD)/minimo.gcode
+
+# Corre todos los programas de tests/ y los compara con lo esperado.
+pruebas: $(BIN)
+	bash tests/correr_pruebas.sh ./$(BIN)
 
 clean:
 	rm -rf $(BUILD) $(BIN) salida.gcode
