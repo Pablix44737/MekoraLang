@@ -6,14 +6,14 @@ llaves y paréntesis se cierran solos.
 
 ## Instalar
 
-La forma más simple es copiar esta carpeta (no hace falta compilar nada) a
-la carpeta de extensiones de VS Code, con este nombre:
+Hace falta Node. Con VS Code cerrado, desde esta carpeta, en PowerShell:
 
-    %USERPROFILE%\.vscode\extensions\mekoralang-ugd.mekoralang-0.1.0
-
-y reiniciar VS Code. Para sacarla, se borra esa carpeta.
-
-Otra forma, con Node instalado, es armar el paquete e instalarlo:
-
-    npx @vscode/vsce package --allow-missing-repository --skip-license
+    npx.cmd @vscode/vsce package --allow-missing-repository --skip-license
     code --install-extension mekoralang-0.1.0.vsix
+
+El primer comando arma el paquete `mekoralang-0.1.0.vsix` y el segundo lo
+instala. Copiar la carpeta a mano en `.vscode\extensions` no alcanza: VS Code
+no la registra. Si `code` no se reconoce, se puede instalar desde VS Code con
+"Extensions: Install from VSIX...". El `.vsix` no se versiona.
+
+Para sacarla, se desinstala desde el panel de extensiones.

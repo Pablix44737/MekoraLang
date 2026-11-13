@@ -91,7 +91,7 @@ calcula los tipos y verifica la forma de cada llamada. El segundo recorre el
 programa desde main, entrando en cada llamada y repitiendo el cuerpo de
 cada repeat, y verifica que no se mueva un eje sin posicion conocida y que
 ningun movimiento se salga de los limites de la maquina ni supere su
-velocidad maxima. Cada chequeo tiene su programa de prueba en `tests/`.
+velocidad maxima.
 
 Generacion de G-code completa. Como G-code no tiene variables ni saltos y el
 lenguaje no tiene entradas, el compilador ejecuta el programa y escribe lo
@@ -100,7 +100,7 @@ el lugar de la llamada y de cada if emite solo la rama que se toma. Si un
 valor que depende de una variable resulta estar fuera de los limites, o hay
 una division por cero, es un error y no queda archivo de salida.
 
-Pruebas automatizadas: `make pruebas` corre los 79 programas de `tests/`.
+Pruebas automatizadas: `make pruebas` corre los 25 programas de `tests/`.
 Cada uno dice en su encabezado que se espera, y el script verifica el
 codigo de salida, la linea y el texto de cada error, las advertencias y,
 en los programas validos, el G-code contra `tests/esperado/`.

@@ -570,84 +570,37 @@ Una rama que no se toma nunca se ejecuta, así que un valor variable fuera de ra
 
 ## 11. Escenarios de prueba (requisito de la cátedra)
 
-Casos válidos: programa mínimo (la máquina con solo los campos obligatorios y un `main` vacío; desde el paso 4 la máquina es obligatoria y el caso "máquina con un único campo" dejó de ser válido), procedimiento sin parámetros, `if` sin `else`, `if/else if/else` encadenado, `repeat` anidado, `repeat` con índice, expresión aritmética con precedencia mixta, `Draw` completo, `DisableMotors()` seguido de `AutoHome()` y movimiento, uso de `Raw`. En el paso 4 se agregaron: el programa de la sección 9 completo (`ejemplo_completo.gc`), homing en todas las ramas de un `if` (`pos_if_ramas.gc`), `AutoHome(X, Y)` parcial, ocultamiento de nombres y un límite que depende de una variable, que compila con una advertencia (`adv_limite_variable.gc`).
+Los casos están en `tests/` y se corren con `make pruebas`. Cada archivo dice en su encabezado qué se espera: que compile, o el error con su línea y un fragmento del mensaje. Para los programas válidos hay además un G-code esperado en `tests/esperado/`; el de los casos `gen_*` se escribió a mano, sin mirar la salida del compilador.
 
-Cada archivo de prueba dice en su segunda línea qué se espera: "compila sin errores" o el error, con la línea y un fragmento del mensaje.
-
-Casos de error, uno por chequeo de la sección 8:
-
-| Archivo | Error esperado |
-|---|---|
-| `err_no_declarado.gc` | uso de variable inexistente |
-| `err_redeclaracion.gc` | dos `var` con el mismo nombre en el mismo ámbito |
-| `err_tipo_cond.gc` | `if (5) { }` — condición no booleana |
-| `err_tipo_asig.gc` | `var b : bool = 3;` |
-| `err_aridad.gc` | `Wait(1, 2);` |
-| `err_campo.gc` | `m.campo_inexistente` |
-| `err_repeat_no_const.gc` | `repeat vel { }` con `vel` variable |
-| `err_asig_const.gc` | asignación a una constante |
-| `err_asig_indice.gc` | asignación al índice de un `repeat` |
-| `err_sin_main.gc` | programa sin `main` (error sintáctico desde el paso 3) |
-| `err_draw_sin_e.gc` | `Draw(X: 10, F: 1200);` sin `E:` |
-| `err_move_vacio.gc` | `Move(F: 3000);` sin ningún eje |
-| `err_sin_homing.gc` | `Move` como primera sentencia de `main` |
-| `err_pos_invalida.gc` | `Move` después de `DisableMotors()` sin re-homing |
-| `err_pos_rama.gc` | `DisableMotors()` en una sola rama de un `if`, `Move` después |
-| `err_limite.gc` | `Move(X: 500)` con `limite_x: 220` |
-| `err_lexico.gc` | carácter no reconocido (`@`) |
-| `err_sintactico.gc` | `;` faltante |
-
-Casos de error agregados en el paso 4, por las decisiones de las secciones 5.1, 8.3 y 8.4:
-
-| Archivo | Error esperado |
-|---|---|
-| `err_sin_maquina.gc` | programa sin máquina |
-| `err_dos_maquinas.gc` | dos máquinas |
-| `err_maquina_no_primera.gc` | la máquina no es la primera declaración |
-| `err_campo_faltante.gc` | falta `feedrate_max` |
-| `err_campo_no_positivo.gc` | `limite_z: 0` |
-| `err_recursion.gc` | un procedimiento que se llama a sí mismo |
-| `err_uso_antes.gc` | llamada a un procedimiento declarado más abajo |
-| `err_eje_no_admitido.gc` | `Move(X: 10, E: 5)` |
-| `err_eje_repetido.gc` | `Move(X: 10, X: 20)` |
-| `err_eje_solo.gc` | `Move(X)` |
-| `err_autohome_valor.gc` | `AutoHome(X: 10)` |
-| `err_cadena_arg.gc` | `Wait("dos")` |
-| `err_tipo_op.gc` | `3 + true` |
-| `err_tipo_arg.gc` | `SetBedTemp(true)` |
-| `err_aridad_proc.gc` | procedimiento con argumentos de menos |
-| `err_var_machine.gc` | `var m : machine = Ender3;` |
-| `err_const_machine.gc` | `const M : machine = Ender3;` |
-| `err_repeat_negativo.gc` | `repeat -2` |
-| `err_repeat_no_entero.gc` | `repeat 2.5` |
-| `err_repeat_param.gc` | `repeat n` con `n` parámetro que recibe una variable |
-| `err_pos_proc.gc` | posición desconocida dentro de un procedimiento, con la nota de la llamada |
-| `err_limite_indice.gc` | límite excedido en una vuelta de un `repeat`, con el valor del índice |
-| `err_limite_param.gc` | límite excedido por el argumento de una llamada |
-| `err_feedrate.gc` | `F: 5000` con `feedrate_max: 3000` |
-| `err_asig_param.gc` | asignación a un parámetro |
-| `err_nombre_builtin.gc` | `procedure Move()` |
-| `err_message_punto_coma.gc` | `Message("Calentando; esperar")` |
-| `err_div_cero.gc` | `10 / 0` en una constante |
-| `err_no_procedimiento.gc` | llamada a una variable |
-
-Casos agregados en el paso 5, por la generación (sección 10). De cada programa válido hay un G-code esperado en `tests/esperado/`. El de los casos `gen_*` se escribió a mano, sin mirar la salida del compilador; el de los demás se guardó después de revisarlo contra su fuente.
+Elegimos pocos casos, uno o dos por fase, que muestran lo central de cada una.
 
 | Archivo | Qué prueba |
 |---|---|
-| `gen_muestra.gc` | la muestra de esta sección 10, línea por línea |
-| `gen_builtins.gc` | todos los builtins, el orden de los parámetros y el formato de los números |
-| `gen_variables.gc` | reasignación, `var` que se reinicia en cada vuelta, comentarios de advertencia |
-| `gen_if.gc` | solo se emite la rama que se toma, incluso con `else if` |
-| `gen_repeat.gc` | `repeat 0`, índice desde 0, cantidad que depende de otro índice |
-| `gen_procedimientos.gc` | expansión con distintos argumentos, llamadas anidadas, ocultamiento |
-| `err_gen_limite_variable.gc` | una variable que vale 500 con `limite_x: 220` |
-| `err_gen_feedrate_variable.gc` | `F: vel` con `vel` en 5000 |
-| `err_gen_feedrate_cero.gc` | `F: vel` con `vel` en 0 |
-| `err_gen_limite_indice.gc` | una variable que se pasa del límite en una vuelta; el error sale una vez |
-| `err_gen_proc.gc` | el valor llega por un parámetro, con la nota de la llamada |
+| `minimo.gc` | la máquina con solo los campos obligatorios y un `main` vacío |
+| `ejemplo.gc` | rutina de mantenimiento completa; es el programa por defecto de `make tokens`, `make ast` y `make tabla` |
+| `ejemplo_completo.gc` | el programa de la sección 9, con sus dos advertencias |
+| `precedencia.gc` | `200 + 10 * 2` llega justo al límite de 220: con otra precedencia daría 420 |
+| `ocultamiento.gc` | regla del bloque anidado más cercano |
+| `pos_if_ramas.gc` | homing en las dos ramas de un `if` |
+| `gen_muestra.gc` | la muestra de la sección 10, línea por línea |
+| `gen_variables.gc` | variables reasignadas y comentarios de advertencia en el G-code |
+| `gen_if.gc` | solo se emite la rama que se toma |
+| `sintaxis.gc` | toda la gramática, para `make ast`; sin `--ast` da tres errores semánticos a propósito |
+| `err_lexico.gc` | carácter no reconocido (`@`) |
+| `err_recuperacion.gc` | tres errores de sintaxis reportados en una sola corrida |
+| `err_sin_main.gc` | programa sin `main` |
+| `err_no_declarado.gc` | nombre no declarado |
+| `err_redeclaracion.gc` | dos `var` con el mismo nombre en el mismo alcance |
+| `err_tipo_op.gc` | `3 + true` |
+| `err_aridad.gc` | `Wait(1, 2)` |
+| `err_draw_sin_e.gc` | `Draw` sin `E:` |
+| `err_recursion.gc` | un procedimiento que se llama a sí mismo |
+| `err_sin_homing.gc` | `Move` antes de `AutoHome` |
+| `err_pos_rama.gc` | `DisableMotors()` en una sola rama de un `if` y `Move` después |
+| `err_pos_proc.gc` | posición desconocida dentro de un procedimiento, con la nota de la llamada |
+| `err_limite_indice.gc` | límite excedido en una vuelta de un `repeat`, con el valor del índice |
+| `err_gen_limite_variable.gc` | una variable que vale 500 con `limite_x: 220`: error al generar |
 | `err_gen_div_cero.gc` | división por una variable que vale 0 |
-| `err_gen_sin_cortocircuito.gc` | `x != 0 and 10 / x > 1` con `x` en 0 |
 
 ---
 

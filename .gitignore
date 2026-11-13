@@ -66,3 +66,6 @@ gcodec
 *.gcode
 # ...salvo la salida esperada de las pruebas
 !tests/esperado/*.gcode
+
+# Paquete de la extension de VS Code (se arma con vsce)
+*.vsix
