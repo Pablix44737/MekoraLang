@@ -13,18 +13,15 @@ static const char *nombre_maquina;
 static double      limite[3];
 static double      feedrate_max;
 
-/* Pila de llamadas activas, de main hacia adentro. Es el contexto que se
- * muestra en las notas de un error. */
+/* Pila de llamadas, para las notas de los errores */
 static Nodo **pila;
 static int    n_pila, cap_pila;
 
-/* Indices de repeat activos, para decir su valor en los mensajes. */
+/* Indices activos, para mostrar su valor en los mensajes */
 static Simbolo **indices;
 static int       n_indices, cap_indices;
 
-/* Lo ya reportado. Un cuerpo de repeat se recorre muchas veces y un
- * procedimiento puede llamarse desde varios lugares: cada error se reporta
- * una vez por sentencia y por cadena de llamadas. */
+/* Lo ya reportado: una vez por sentencia y cadena de llamadas */
 typedef enum { R_ERROR, R_ADVERTENCIA } ClaseReporte;
 
 typedef struct Reportado {
@@ -37,9 +34,7 @@ typedef struct Reportado {
 
 static Reportado *reportados;
 
-/* ------------------------------------------------------------------ */
-/* Utilidades                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Utilidades --- */
 
 static void sin_memoria(void)
 {
@@ -105,9 +100,7 @@ void recorrido_liberar(void)
     n_pila = cap_pila = n_indices = cap_indices = 0;
 }
 
-/* ------------------------------------------------------------------ */
-/* Reportes                                                            */
-/* ------------------------------------------------------------------ */
+/* --- Reportes --- */
 
 static Reportado *buscar_reportado(const Nodo *nodo, ClaseReporte clase)
 {
@@ -120,8 +113,7 @@ static Reportado *buscar_reportado(const Nodo *nodo, ClaseReporte clase)
     return NULL;
 }
 
-/* Devuelve 1 si ese nodo ya se reporto con la misma cadena de llamadas, y
- * si no lo anota. */
+/* 1 si ya se reporto; si no, lo anota */
 static int ya_reportado(const Nodo *nodo, ClaseReporte clase)
 {
     Reportado *r;
@@ -225,9 +217,7 @@ ResultadoEval recorrido_evaluar(const Nodo *e, double *v, const Nodo **culpable)
     return r;
 }
 
-/* ------------------------------------------------------------------ */
-/* Limites y feedrate                                                  */
-/* ------------------------------------------------------------------ */
+/* --- Limites y feedrate --- */
 
 static void verificar_limite(const Nodo *arg, int i, ResultadoEval r, double v,
                              const Nodo *culpable)
@@ -286,9 +276,7 @@ void recorrido_verificar(const Builtin *b, const Nodo *arg, ResultadoEval r,
         verificar_feedrate(arg, r, v, culpable);
 }
 
-/* ------------------------------------------------------------------ */
-/* Procedimientos: expansion en linea                                  */
-/* ------------------------------------------------------------------ */
+/* --- Procedimientos: expansion en linea --- */
 
 int recorrido_entrar_proc(Nodo *llamada, Simbolo *p)
 {
@@ -312,9 +300,7 @@ int recorrido_entrar_proc(Nodo *llamada, Simbolo *p)
     if (!valores || !conocidos)
         sin_memoria();
 
-    /* Los argumentos se evaluan en el contexto de quien llama, antes de
-     * ligar los parametros. Un parametro machine no necesita valor: es
-     * siempre la maquina del programa. */
+    /* argumentos con los valores de quien llama (machine no tiene valor) */
     for (param = decl->proc.params, arg = llamada->llamada.args, i = 0;
          param && arg; param = param->sig, arg = arg->sig, i++) {
         const Nodo *culpable;
@@ -323,8 +309,7 @@ int recorrido_entrar_proc(Nodo *llamada, Simbolo *p)
                            == EVAL_OK;
     }
 
-    /* Como no hay recursion, cada parametro tiene a lo sumo una llamada
-     * activa: su valor puede guardarse en la propia entrada de la tabla. */
+    /* sin recursion, el valor va en la entrada del parametro */
     for (param = decl->proc.params, i = 0; param; param = param->sig, i++) {
         param->simbolo->conocido = conocidos[i];
         param->simbolo->valor    = valores[i];
@@ -347,9 +332,7 @@ void recorrido_salir_proc(Simbolo *p)
         param->simbolo->conocido = 0;
 }
 
-/* ------------------------------------------------------------------ */
-/* Repeat: desenrollado                                                */
-/* ------------------------------------------------------------------ */
+/* --- Repeat: desenrollado --- */
 
 int recorrido_vueltas(const Nodo *repeat, long *vueltas)
 {

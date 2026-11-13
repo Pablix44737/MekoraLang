@@ -6,8 +6,7 @@ int         errores         = 0;
 int         advertencias    = 0;
 const char *archivo_entrada = "<entrada>";
 
-/* "clase" es lo que va despues de la posicion: "error lexico",
- * "advertencia", "nota". "contador" es el que se incrementa, o NULL. */
+/* clase: "error lexico", "advertencia", "nota"... contador puede ser NULL */
 static void reportar(const char *clase, int *contador, int linea, int columna,
                      const char *fmt, va_list args)
 {

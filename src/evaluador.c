@@ -57,8 +57,7 @@ ResultadoEval evaluar(const Nodo *e, double *valor, const Nodo **culpable)
         return EVAL_OK;
 
     case N_BINARIA:
-        /* Se evaluan los dos lados aunque el primero falle, para que una
-         * division por cero se detecte aunque el otro lado sea variable. */
+        /* los dos lados siempre, para no perder una division por cero */
         ri = evaluar(e->binaria.izq, &vi, &ci);
         rd = evaluar(e->binaria.der, &vd, &cd);
         if (ri == EVAL_DIV_CERO) { *culpable = ci; return ri; }
@@ -74,7 +73,7 @@ ResultadoEval evaluar(const Nodo *e, double *valor, const Nodo **culpable)
         return EVAL_OK;
 
     default:
-        /* Cadenas y ejes no son expresiones: no deberian llegar aca. */
+        /* cadenas y ejes no llegan aca */
         *culpable = e;
         return EVAL_NO_CONSTANTE;
     }

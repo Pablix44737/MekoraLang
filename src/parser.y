@@ -1,22 +1,12 @@
-/* parser.y - Analizador sintactico
+/* parser.y - Analizador sintactico (spec seccion 4) y armado del arbol
  *
- * Implementa la gramatica de la especificacion, seccion 4, y construye el
- * arbol sintactico definido en ast.h.
- *
- * Las expresiones estan estratificadas en un no terminal por nivel de
- * precedencia, igual que en la EBNF, en lugar de declarar %left/%right.
- * Es mas largo, pero la precedencia queda escrita en la propia gramatica.
- *
- * La gramatica no tiene conflictos: las llaves obligatorias en las ramas
- * del if eliminan el dangling-else, y los ejes son tokens propios, asi que
- * ante "X" el parser sabe que viene un argumento nombrado.
+ * Precedencia por niveles, un no terminal por nivel, sin %left/%right.
+ * Sin conflictos: llaves obligatorias en el if y ejes como tokens.
  */
 
 %require "3.6"
 
-/* ast.h tiene que estar antes que la union de valores, que usa Nodo. Con
- * "requires" bison lo copia tambien en parser.tab.h, y asi cualquier
- * archivo que incluya ese header (el lexer, tokens.c) ve los tipos. */
+/* ast.h antes de la union; "requires" lo copia en parser.tab.h */
 %code requires {
 #include "ast.h"
 }
@@ -32,16 +22,14 @@ void yyerror(const char *msg);
 
 Nodo *arbol = NULL;
 
-/* Linea y columna donde empieza un simbolo de la regla, como los dos
- * ultimos argumentos de los constructores del arbol: POS(@2). */
+/* linea y columna de un simbolo: POS(@2) */
 #define POS(loc) (loc).first_line, (loc).first_column
 }
 
-/* Posiciones: el lexer carga yylloc y bison la propaga a @1, @2... */
+/* el lexer carga yylloc */
 %locations
 
-/* Mensajes de error propios (yyreport_syntax_error, al final) en lugar de
- * los de bison. LAC hace que la lista de tokens esperados sea exacta. */
+/* mensajes propios (yyreport_syntax_error) y LAC */
 %define parse.error custom
 %define parse.lac full
 
@@ -54,8 +42,7 @@ Nodo *arbol = NULL;
     Nodo     *nodo;
 }
 
-/* El texto entre comillas es el nombre con el que el token aparece en los
- * mensajes de error. Los nombres en mayuscula son los que usa el codigo. */
+/* entre comillas: como aparece el token en los mensajes de error */
 
 /* --- Palabras reservadas --- */
 %token MACHINE      "'machine'"
@@ -125,8 +112,7 @@ Nodo *arbol = NULL;
 %type <eje>  eje
 %type <op>   relop
 
-/* Si un error de sintaxis obliga a descartar simbolos ya construidos,
- * bison llama a estas funciones para no perder la memoria. */
+/* para liberar lo que se descarta al recuperarse de un error */
 %destructor { free($$); }        <texto>
 %destructor { ast_liberar($$); } <nodo>
 
@@ -134,9 +120,7 @@ Nodo *arbol = NULL;
 
 %%
 
-/* ------------------------------------------------------------------ */
-/* 4.1 Estructura del programa                                         */
-/* ------------------------------------------------------------------ */
+/* --- 4.1 Estructura del programa --- */
 
 programa
     : lista_decl main_block
@@ -213,9 +197,7 @@ lista_sent
     | lista_sent sentencia      { $$ = ast_agregar($1, $2); }
     ;
 
-/* ------------------------------------------------------------------ */
-/* 4.2 Sentencias                                                      */
-/* ------------------------------------------------------------------ */
+/* --- 4.2 Sentencias --- */
 
 sentencia
     : var_decl
@@ -224,9 +206,7 @@ sentencia
     | repeat_stmt
     | llamada
     | bloque
-    /* Recuperacion: ante un error dentro de una sentencia se descarta la
-     * entrada hasta el proximo ';' y se sigue con la siguiente. Asi un
-     * mismo fuente puede reportar varios errores en lugar de uno solo. */
+    /* recuperacion: se descarta hasta el proximo ';' */
     | error PUNTO_COMA          { $$ = NULL; yyerrok; }
     ;
 
@@ -271,8 +251,7 @@ lista_arg
     | lista_arg COMA arg        { $$ = ast_agregar($1, $3); }
     ;
 
-/* Un argumento posicional es una expresion y queda en la lista tal cual.
- * El eje solo, sin valor, es para AutoHome(X, Y). */
+/* el eje solo es para AutoHome(X, Y) */
 arg
     : expr
     | eje DOS_PUNTOS expr       { $$ = ast_arg_eje($1, $3, POS(@1)); }
@@ -289,14 +268,8 @@ eje
     | EJE_S                     { $$ = 'S'; }
     ;
 
-/* ------------------------------------------------------------------ */
-/* 4.3 Expresiones, de menor a mayor precedencia                       */
-/*                                                                     */
-/* Los operadores binarios son asociativos a izquierda: las reglas son */
-/* recursivas a izquierda, asi que a - b - c se agrupa (a - b) - c.    */
-/* Los nodos binarios guardan la posicion del operador, que es donde   */
-/* conviene marcar un error de tipos.                                  */
-/* ------------------------------------------------------------------ */
+/* --- 4.3 Expresiones, de menor a mayor precedencia --- */
+/* recursivas a izquierda: a - b - c es (a - b) - c */
 
 expr
     : or_expr
@@ -372,9 +345,7 @@ primario
 
 %%
 
-/* ------------------------------------------------------------------ */
-/* Mensajes de error de sintaxis                                       */
-/* ------------------------------------------------------------------ */
+/* --- Mensajes de error de sintaxis --- */
 
 extern char *yytext;
 
@@ -385,10 +356,7 @@ static const char *describir(yysymbol_kind_t simbolo)
     return yysymbol_name(simbolo);
 }
 
-/* El token donde se detecto el error. Si es un identificador, un numero o
- * una cadena, se muestra el texto concreto: "se encontro 'Wait'" dice mas
- * que "se encontro identificador". En ese momento yytext todavia tiene el
- * lexema, porque es el ultimo token que leyo el lexer. */
+/* Si es ID, numero o cadena se muestra el texto (yytext) */
 static void describir_encontrado(yysymbol_kind_t simbolo, char *buf, size_t tam)
 {
     switch (simbolo) {
@@ -405,9 +373,7 @@ static void describir_encontrado(yysymbol_kind_t simbolo, char *buf, size_t tam)
     }
 }
 
-/* Bison la llama ante cada error de sintaxis. Arma un mensaje del estilo
- * "se esperaba ')' y se encontro ';'". Si los tokens posibles son
- * demasiados para listarlos, dice solo cual no se esperaba. */
+/* "se esperaba X y se encontro Y"; si son muchos, "no se esperaba Y" */
 static int yyreport_syntax_error(const yypcontext_t *ctx)
 {
     enum { MAX_ESPERADOS = 4 };
@@ -440,8 +406,7 @@ static int yyreport_syntax_error(const yypcontext_t *ctx)
     return 0;
 }
 
-/* Con parse.error custom bison solo usa yyerror para casos como quedarse
- * sin memoria en la pila del parser. */
+/* con parse.error custom solo se usa en casos como falta de memoria */
 void yyerror(const char *msg)
 {
     error_sintactico(yylloc.first_line, yylloc.first_column, "%s", msg);

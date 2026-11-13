@@ -5,23 +5,11 @@
 
 /* ast.h - Arbol de sintaxis abstracta
  *
- * El parser construye el arbol y las fases siguientes lo recorren: el
- * analisis semantico (paso 4) y la generacion de G-code (paso 5). No alcanza
- * con emitir G-code al vuelo mientras se parsea, porque el desenrollado de
- * repeat recorre el cuerpo del bucle varias veces y el chequeo de posicion
- * conocida necesita mirar las dos ramas de un if antes de seguir.
- *
- * Hay un solo tipo de nodo, Nodo. El campo "tipo" dice que clase de nodo es
- * y la union guarda los datos propios de esa clase: un N_IF usa n->si, un
- * N_LLAMADA usa n->llamada, y asi. Las listas (declaraciones, campos,
- * parametros, sentencias, argumentos) se encadenan con el puntero "sig".
- *
- * Los parentesis no aparecen en el arbol: la forma del arbol ya dice en que
- * orden se agrupan las operaciones. */
+ * Un solo tipo Nodo: "tipo" dice la clase y la union guarda sus datos
+ * (N_IF usa n->si, N_LLAMADA usa n->llamada...). Las listas se encadenan
+ * con "sig". */
 
-/* DATO_ERROR no aparece en el fuente: es el tipo que el analisis semantico
- * le da a una expresion mal formada, para no volver a reportar el mismo
- * error en cada expresion que la contiene. */
+/* DATO_ERROR: tipo de una expresion mal formada (evita errores en cascada) */
 typedef enum {
     DATO_NUMBER,
     DATO_BOOL,
@@ -75,11 +63,8 @@ struct Nodo {
     int      columna;
     Nodo    *sig;       /* siguiente elemento, si el nodo esta en una lista */
 
-    /* Lo completa el analisis semantico (recorrido 1). En un uso de un
-     * nombre (N_ID, N_ACCESO, N_LLAMADA, N_ASIGNACION) apunta a la entrada
-     * de la tabla de simbolos que le corresponde; en una declaracion, a la
-     * entrada que crea. Asi las fases siguientes no vuelven a resolver
-     * nombres. El parser lo deja en NULL. */
+    /* Entrada de la tabla de simbolos del nombre usado o declarado. La
+     * carga el primer recorrido; el parser la deja en NULL. */
     struct Simbolo *simbolo;
 
     union {
@@ -105,12 +90,10 @@ struct Nodo {
     };
 };
 
-/* Raiz del arbol. La define parser.y y la deja cargada la regla inicial
- * cuando el parseo termina. */
+/* Raiz del arbol, la carga parser.y */
 extern Nodo *arbol;
 
-/* Constructores. Los nodos se quedan con los char* que reciben: el lexer
- * ya los copio con strdup, asi que no se vuelven a copiar. */
+/* Constructores. Los char* vienen del lexer (strdup) y no se copian. */
 Nodo *ast_programa     (Nodo *declaraciones, Nodo *principal);
 Nodo *ast_maquina      (char *nombre, Nodo *campos, int linea, int columna);
 Nodo *ast_campo        (char *nombre, Nodo *valor, int linea, int columna);
@@ -135,12 +118,10 @@ Nodo *ast_acceso       (char *objeto, char *campo, int linea, int columna);
 Nodo *ast_binaria      (Operador op, Nodo *izq, Nodo *der, int linea, int columna);
 Nodo *ast_unaria       (Operador op, Nodo *operando, int linea, int columna);
 
-/* Agrega "nuevo" al final de "lista" y devuelve la lista. Si "nuevo" es
- * NULL (una sentencia descartada por un error de sintaxis) la deja igual. */
+/* Agrega al final. Si nuevo es NULL (sentencia descartada) no hace nada. */
 Nodo *ast_agregar(Nodo *lista, Nodo *nuevo);
 
-/* Imprime el arbol indentado, un nodo por linea con su posicion en el
- * fuente. Es lo que muestra el modo --ast. */
+/* Modo --ast: un nodo por linea con su posicion */
 void ast_imprimir(FILE *out, const Nodo *raiz);
 
 /* Libera el nodo, sus hijos y el resto de la lista que cuelga de "sig". */

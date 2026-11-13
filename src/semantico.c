@@ -9,19 +9,9 @@
 
 /* semantico.c - Primer recorrido del analisis semantico
  *
- * Es la comprobacion estatica de la seccion 2.8.3 del libro: que cada
- * nombre este declarado, que los tipos sean compatibles, que solo se
- * asigne a lo que se puede asignar (las variables) y que cada llamada
- * tenga la forma que pide su procedimiento o su builtin.
- *
- * El tipo de una expresion es un atributo sintetizado (secciones 5.1 y
- * 6.5.1): tipo_expr lo calcula a partir de los tipos de las
- * subexpresiones, de las hojas hacia la raiz. No hay conversiones
- * implicitas entre number y bool.
- *
- * Una expresion mal formada recibe el tipo DATO_ERROR, que se acepta en
- * silencio en todos lados. Asi un solo error no se reporta una vez por
- * cada expresion que lo contiene. */
+ * Nombres, tipos y forma de las llamadas (libro 2.8.3). El tipo se
+ * sintetiza de las hojas a la raiz (6.5.1), sin conversiones implicitas.
+ * DATO_ERROR evita repetir el mismo error. */
 
 static Alcance *predefinido;      /* los builtins                        */
 static Alcance *global;           /* maquina, constantes, procedimientos */
@@ -36,9 +26,7 @@ static const char *const campos_obligatorios[] = {
 static void     analizar_lista(Nodo *s, Alcance *a);
 static TipoDato tipo_expr(Nodo *e, Alcance *a);
 
-/* ------------------------------------------------------------------ */
-/* Utilidades                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Utilidades --- */
 
 #define ERROR_EN(n, ...)  error_semantico((n)->linea, (n)->columna, __VA_ARGS__)
 
@@ -75,9 +63,7 @@ static const char *nombre_decl(const Nodo *d)
     }
 }
 
-/* Un nombre que no esta en la tabla puede no existir, o estar declarado
- * mas abajo en el archivo. Como hay que declarar antes de usar, el
- * segundo caso tambien es error, pero conviene decirlo con claridad. */
+/* no declarado, o declarado mas abajo */
 static void reportar_no_declarado(const char *nombre, const Nodo *uso)
 {
     const Nodo *d;
@@ -94,9 +80,7 @@ static void reportar_no_declarado(const char *nombre, const Nodo *uso)
     ERROR_EN(uso, "'%s' no esta declarado", nombre);
 }
 
-/* Agrega un nombre al alcance, despues de verificar que no sea el de un
- * builtin y que no este ya declarado en ese mismo alcance. Si esta en un
- * alcance de afuera no es error: el nuevo lo oculta. */
+/* chequea builtin y redeclaracion; ocultar uno de afuera vale */
 static Simbolo *declarar(Alcance *a, const char *nombre, ClaseSimbolo clase,
                          TipoDato tipo, Nodo *decl)
 {
@@ -116,9 +100,7 @@ static Simbolo *declarar(Alcance *a, const char *nombre, ClaseSimbolo clase,
     return alcance_insertar(a, nombre, clase, tipo, decl);
 }
 
-/* Una division por cero entre constantes ya se ve aca, sin esperar al
- * segundo recorrido, y asi se reporta una sola vez. Las que dependen del
- * valor de un parametro las encuentra el segundo, en cada llamada. */
+/* division por cero entre constantes */
 static void revisar_division(const Nodo *e)
 {
     const Nodo *culpable;
@@ -128,8 +110,7 @@ static void revisar_division(const Nodo *e)
         ERROR_EN(culpable, "division o resto por cero");
 }
 
-/* Calcula el tipo de "e" y lo compara con el esperado. "contexto" dice de
- * que expresion se trata, para el mensaje. Devuelve el tipo calculado. */
+/* tipo de e contra el esperado; contexto es para el mensaje */
 static TipoDato esperar_tipo(Nodo *e, Alcance *a, TipoDato esperado,
                              const char *contexto)
 {
@@ -143,10 +124,7 @@ static TipoDato esperar_tipo(Nodo *e, Alcance *a, TipoDato esperado,
     return t;
 }
 
-/* Evalua el valor de una constante o un campo y lo guarda en su entrada.
- * En el alcance global solo se ven constantes y campos, asi que una
- * expresion bien tipada siempre se puede evaluar. Si hay una division
- * por cero, ya la reporto revisar_division. */
+/* valor de una const o un campo */
 static void fijar_valor(Simbolo *s, const Nodo *valor)
 {
     const Nodo *culpable;
@@ -158,8 +136,7 @@ static void fijar_valor(Simbolo *s, const Nodo *valor)
     }
 }
 
-/* Devuelve el primer uso de una variable dentro de la expresion, o NULL.
- * La expresion ya tiene que estar decorada por tipo_expr. */
+/* primer uso de una variable en e, o NULL */
 static const Nodo *primera_variable(const Nodo *e)
 {
     const Nodo *v;
@@ -177,9 +154,7 @@ static const Nodo *primera_variable(const Nodo *e)
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Expresiones: tipo sintetizado                                       */
-/* ------------------------------------------------------------------ */
+/* --- Expresiones: tipo sintetizado --- */
 
 static TipoDato tipo_id(Nodo *e, Alcance *a)
 {
@@ -197,9 +172,7 @@ static TipoDato tipo_id(Nodo *e, Alcance *a)
     return s->tipo;
 }
 
-/* m.campo. Como hay una sola maquina por programa, un parametro de tipo
- * machine siempre es esa maquina, y el campo se puede verificar aca sin
- * esperar a la llamada. */
+/* m.campo: hay una sola maquina, se verifica aca */
 static TipoDato tipo_acceso(Nodo *e, Alcance *a)
 {
     Simbolo *s = alcance_buscar(a, e->acceso.objeto);
@@ -304,13 +277,9 @@ static TipoDato tipo_expr(Nodo *e, Alcance *a)
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Llamadas                                                            */
-/* ------------------------------------------------------------------ */
+/* --- Llamadas --- */
 
-/* Analiza las expresiones de los argumentos sin validar la forma de la
- * llamada. Se usa cuando lo llamado no existe o no es un procedimiento,
- * para no perder los errores que haya dentro de los argumentos. */
+/* solo los argumentos, cuando lo llamado no existe o no es procedimiento */
 static void analizar_args_sueltos(Nodo *arg, Alcance *a)
 {
     for (; arg; arg = arg->sig) {
@@ -323,8 +292,7 @@ static void analizar_args_sueltos(Nodo *arg, Alcance *a)
     }
 }
 
-/* Valida una llamada a builtin recorriendo su fila de la tabla. No hay
- * ningun caso particular por builtin: todo sale de los datos. */
+/* valida recorriendo la fila del builtin */
 static void validar_builtin(Nodo *s, const Builtin *b, Alcance *a)
 {
     int presente[MAX_PARAMS_BUILTIN] = { 0 };
@@ -432,8 +400,7 @@ static void validar_builtin(Nodo *s, const Builtin *b, Alcance *a)
     }
 }
 
-/* Valida una llamada a procedimiento: solo argumentos posicionales, tantos
- * como parametros, cada uno del tipo de su parametro. */
+/* procedimiento: solo posicionales, cantidad y tipos */
 static void validar_args_proc(Nodo *s, Simbolo *p, Alcance *a)
 {
     Nodo *param = p->decl->proc.params;
@@ -484,9 +451,7 @@ static void analizar_llamada(Nodo *s, Alcance *a)
         validar_builtin(s, p->builtin, a);
         break;
     case S_PROC:
-        /* Con "declarar antes de usar" la unica recursion posible es la
-         * directa: para que A llame a B y B a A, uno de los dos tendria
-         * que llamar a un procedimiento declarado mas abajo. */
+        /* solo puede ser recursion directa */
         if (p == proc_actual)
             ERROR_EN(s, "'%s' se llama a si mismo: la recursion no esta "
                      "permitida, porque cada llamada se expande en linea",
@@ -500,9 +465,7 @@ static void analizar_llamada(Nodo *s, Alcance *a)
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Sentencias                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Sentencias --- */
 
 /* Un bloque { } abre un alcance nuevo dentro del actual. */
 static void analizar_bloque(Nodo *bloque, Alcance *a, const char *descripcion)
@@ -526,8 +489,7 @@ static void analizar_var(Nodo *s, Alcance *a)
         esperar_tipo(s->decl.valor, a, t, ctx);
     }
 
-    /* La variable entra a la tabla despues de analizar el valor inicial:
-     * en "var a : number = a + 1;" esa "a" es la de afuera. */
+    /* entra despues del valor: en var a = a + 1, la a es la de afuera */
     declarar(a, s->decl.nombre, S_VAR, t, s);
 }
 
@@ -586,9 +548,7 @@ static void analizar_repeat(Nodo *s, Alcance *a)
                               "la cantidad de repeticiones");
     Alcance *interno;
 
-    /* Tiene que ser constante: el generador desenrolla el bucle. Aca se
-     * descartan las variables; si usa parametros o indices, el valor se
-     * conoce recien en el segundo recorrido. */
+    /* sin variables; parametros e indices se ven en el segundo recorrido */
     if (t == DATO_NUMBER) {
         const Nodo *var = primera_variable(veces);
         const Nodo *culpable;
@@ -613,8 +573,7 @@ static void analizar_repeat(Nodo *s, Alcance *a)
         }
     }
 
-    /* El indice y lo declarado en el cuerpo comparten un mismo alcance,
-     * como los parametros y el cuerpo de un procedimiento. */
+    /* indice y cuerpo comparten alcance */
     interno = alcance_abrir(a, s->linea, "repeat");
     if (s->repetir.indice)
         declarar(interno, s->repetir.indice, S_INDICE, DATO_NUMBER, s);
@@ -640,9 +599,7 @@ static void analizar_lista(Nodo *s, Alcance *a)
         analizar_sentencia(s, a);
 }
 
-/* ------------------------------------------------------------------ */
-/* Declaraciones globales                                              */
-/* ------------------------------------------------------------------ */
+/* --- Declaraciones globales --- */
 
 static void analizar_maquina(Nodo *m, int es_primera)
 {
@@ -662,9 +619,7 @@ static void analizar_maquina(Nodo *m, int es_primera)
     s = declarar(global, m->maquina.nombre, S_MAQUINA, DATO_MACHINE, m);
     if (!s)
         return;
-    /* Los campos no estan en la cadena (anterior es NULL): solo se llega a
-     * ellos con el punto. El nivel es solo para que --tabla los muestre
-     * debajo del global. */
+    /* fuera de la cadena: solo con el punto */
     s->campos = alcance_abrir(NULL, m->linea, "campos de %s", m->maquina.nombre);
     s->campos->nivel = global->nivel + 1;
     if (!maquina)
@@ -726,13 +681,10 @@ static void analizar_procedimiento(Nodo *p)
     Alcance *alcance;
     Nodo *param;
 
-    /* El nombre entra antes de analizar el cuerpo. Asi una llamada a si
-     * mismo se resuelve y se puede reportar como recursion. */
+    /* el nombre entra antes del cuerpo, para detectar la recursion */
     proc_actual = declarar(global, p->proc.nombre, S_PROC, DATO_ERROR, p);
 
-    /* Los parametros y el cuerpo comparten alcance: el bloque del cuerpo
-     * no abre uno nuevo. Por eso "procedure P(a: number) { var a ... }"
-     * es una redeclaracion. Los bloques internos si pueden ocultarlos. */
+    /* parametros y cuerpo comparten alcance */
     alcance = alcance_abrir(global, p->linea, "procedure %s", p->proc.nombre);
     for (param = p->proc.params; param; param = param->sig)
         declarar(alcance, param->param.nombre, S_PARAM, param->param.tipo,
@@ -753,8 +705,7 @@ void analizar_semantica(Nodo *programa)
     maquina = NULL;
     proc_actual = NULL;
 
-    /* Los builtins van en un alcance propio, el mas externo de la cadena.
-     * El global queda adentro. */
+    /* predefinido: los builtins, el alcance mas externo */
     predefinido = alcance_abrir(NULL, 0, "predefinido");
     for (i = 0; i < n_builtins; i++) {
         Simbolo *s = alcance_insertar(predefinido, builtins[i].nombre,
@@ -774,8 +725,7 @@ void analizar_semantica(Nodo *programa)
                  "empieza declarando la impresora para la que se compila");
     }
 
-    /* Las declaraciones en el orden del fuente: un nombre se puede usar
-     * recien despues de su declaracion. */
+    /* en orden del fuente */
     for (d = programa->programa.declaraciones; d; d = d->sig) {
         switch (d->tipo) {
         case N_MAQUINA:
@@ -792,8 +742,7 @@ void analizar_semantica(Nodo *programa)
         }
     }
 
-    /* main, igual que un procedimiento: su cuerpo es un alcance dentro
-     * del global. */
+    /* main: alcance dentro del global */
     alcance_main = alcance_abrir(global, principal->linea, "main");
     analizar_lista(principal->bloque.sentencias, alcance_main);
 }

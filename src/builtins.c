@@ -1,14 +1,13 @@
 #include <string.h>
 #include "builtins.h"
 
-/* Abreviaturas para que cada fila entre en pocas lineas. */
+/* Abreviaturas para las filas */
 #define NOMBRADO(e, oblig)  { P_NOMBRADO,   e, DATO_NUMBER, oblig, e }
 #define EJE_SOLO(e)         { P_EJE_SOLO,   e, DATO_NUMBER, 0,     e }
 #define POSICIONAL(letra)   { P_POSICIONAL, 0, DATO_NUMBER, 1,     letra }
 #define CADENA              { P_CADENA,     0, DATO_NUMBER, 1,     0 }
 
-/* Un builtin por operacion del dominio (seccion 1). Move no admite E:
- * extruir es otra operacion, y para eso estan Draw y Extrude. */
+/* Un builtin por operacion (spec seccion 1). Move no admite E. */
 const Builtin builtins[] = {
     /* nombre, n, parametros, requiere_posicion, texto_sin_comentario,
      * efecto, plantilla, pista (opcional) */
@@ -40,7 +39,7 @@ const Builtin builtins[] = {
     { "Wait",          1, { POSICIONAL('S') },   0, 0, EF_NINGUNO, "G4" },
     { "Fan",           1, { NOMBRADO('S', 1) },  0, 0, EF_NINGUNO, "M106" },
     { "DisableMotors", 0, { { 0 } },             0, 0, EF_LIBERA,  "M84" },
-    /* En G-code el ';' empieza un comentario: M117 cortaria el texto ahi. */
+    /* ';' cortaria el texto de M117 */
     { "Message",       1, { CADENA },            0, 1, EF_NINGUNO, "M117" },
     { "Raw",           1, { CADENA },            0, 0, EF_NINGUNO, "" },
 };

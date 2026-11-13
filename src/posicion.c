@@ -9,26 +9,11 @@
 
 /* posicion.c - Segundo recorrido del analisis semantico
  *
- * Posicion conocida. Es un analisis de flujo de datos hacia adelante: el
- * estado son tres booleanos, uno por eje, que dicen si la posicion de ese
- * eje es conocida. Cada sentencia transforma el estado (AutoHome los pone
- * en verdadero, DisableMotors en falso) y en un if el estado de salida es
- * la union conservadora de las dos ramas: un eje queda conocido solo si lo
- * esta al final de las dos. El recorrido no mira el valor de la condicion,
- * asi que el resultado vale para cualquier valor que tome.
- *
- * Las llamadas se recorren como si el procedimiento estuviera escrito en
- * el lugar de la llamada: se entra con el estado de ese punto y se sale
- * con el que deja el cuerpo. Por eso Preparar puede hacer el AutoHome y
- * BarridoCama mover despues. Como no hay recursion, el recorrido termina.
- *
- * Limites. Cada argumento X, Y, Z de Move y Draw, y cada F, se evalua con
- * los valores de este punto del recorrido: las constantes, los indices de
- * repeat de la vuelta actual y los parametros de la llamada actual. Si es
- * constante y queda fuera de rango, es error; si depende de una variable,
- * es advertencia. La pila de llamadas, el ligado de parametros y esas
- * verificaciones estan en recorrido.c, porque la generacion de codigo
- * tambien las usa. */
+ * Posicion conocida: un booleano por eje. AutoHome los pone en 1 y
+ * DisableMotors en 0. En un if se unen las ramas: conocido solo si lo es
+ * en las dos (no se mira la condicion). Las llamadas se recorren como
+ * expansion en linea y cada repeat vuelta por vuelta.
+ * Limites y feedrate: error si es constante, advertencia si no. */
 
 typedef struct {
     int         conocida;
@@ -45,9 +30,7 @@ static const char NOMBRE_EJE[3] = { 'X', 'Y', 'Z' };
 
 static void ejecutar(Nodo *s, Estado *e);
 
-/* ------------------------------------------------------------------ */
-/* Posicion conocida                                                   */
-/* ------------------------------------------------------------------ */
+/* --- Posicion conocida --- */
 
 static void describir_causa(const EstadoEje *ej, char *buf, size_t tam)
 {
@@ -65,8 +48,7 @@ static void describir_causa(const EstadoEje *ej, char *buf, size_t tam)
         snprintf(buf, tam, "falta un AutoHome() antes");
 }
 
-/* Union conservadora en el punto donde se juntan las dos ramas de un if:
- * un eje queda conocido solo si lo esta en las dos. */
+/* union del if: conocido solo si lo es en las dos ramas */
 static void unir(Estado *salida, const Estado *entonces, const Estado *sino,
                  const Nodo *si)
 {
@@ -87,12 +69,9 @@ static void unir(Estado *salida, const Estado *entonces, const Estado *sino,
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Builtins                                                            */
-/* ------------------------------------------------------------------ */
+/* --- Builtins --- */
 
-/* Lo que hace el builtin sale de su fila en la tabla: el efecto sobre la
- * posicion y que parametros tiene. */
+/* todo sale de la fila del builtin */
 static void ejecutar_builtin(Nodo *s, const Builtin *b, Estado *e)
 {
     Nodo *arg;
@@ -174,9 +153,7 @@ static void ejecutar_builtin(Nodo *s, const Builtin *b, Estado *e)
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Sentencias                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Sentencias --- */
 
 static void ejecutar_repeat(Nodo *s, Estado *e)
 {
@@ -186,7 +163,7 @@ static void ejecutar_repeat(Nodo *s, Estado *e)
     if (!recorrido_vueltas(s, &vueltas))
         return;
 
-    /* El cuerpo se recorre una vez por vuelta, igual que el desenrollado. */
+    /* una vez por vuelta */
     recorrido_entrar_repeat(indice);
     for (k = 0; k < vueltas; k++) {
         recorrido_vuelta(indice, k);
@@ -215,8 +192,7 @@ static void ejecutar(Nodo *s, Estado *e)
         break;
 
     case N_IF: {
-        /* Cada rama arranca con el estado de antes del if; si no hay else,
-         * la rama vacia lo deja igual. Despues se unen. */
+        /* cada rama parte del estado de antes; despues se unen */
         Estado entonces = *e, sino = *e;
 
         recorrido_evaluar(s->si.cond, &v, &culpable);
@@ -246,9 +222,7 @@ static void ejecutar(Nodo *s, Estado *e)
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Entrada                                                             */
-/* ------------------------------------------------------------------ */
+/* --- Entrada --- */
 
 void analizar_posicion(Nodo *programa)
 {
@@ -258,8 +232,7 @@ void analizar_posicion(Nodo *programa)
     if (!recorrido_iniciar(programa, error_semantico))
         return;   /* no pasa si el primer recorrido termino bien */
 
-    /* Al encender, la impresora no sabe donde esta: los tres ejes
-     * arrancan con posicion desconocida. */
+    /* al encender no se conoce la posicion */
     for (i = 0; i < 3; i++) {
         e.eje[i].conocida = 0;
         e.eje[i].causa    = NULL;

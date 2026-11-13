@@ -3,9 +3,7 @@
 #include <stdarg.h>
 #include "ast.h"
 
-/* ------------------------------------------------------------------ */
-/* Construccion                                                        */
-/* ------------------------------------------------------------------ */
+/* --- Construccion --- */
 
 static Nodo *nodo_nuevo(TipoNodo tipo, int linea, int columna)
 {
@@ -190,17 +188,14 @@ Nodo *ast_agregar(Nodo *lista, Nodo *nuevo)
     if (!lista)
         return nuevo;
 
-    /* Recorrer hasta el final es lineal en el largo de la lista, pero las
-     * listas de un programa de este lenguaje son cortas. */
+    /* recorre hasta el final: las listas son cortas */
     for (ultimo = lista; ultimo->sig; ultimo = ultimo->sig)
         ;
     ultimo->sig = nuevo;
     return lista;
 }
 
-/* ------------------------------------------------------------------ */
-/* Nombres legibles                                                    */
-/* ------------------------------------------------------------------ */
+/* --- Nombres legibles --- */
 
 const char *ast_nombre_tipo(TipoDato tipo)
 {
@@ -235,13 +230,10 @@ const char *ast_nombre_operador(Operador op)
     return "?";
 }
 
-/* ------------------------------------------------------------------ */
-/* Impresion                                                           */
-/* ------------------------------------------------------------------ */
+/* --- Impresion --- */
 
-/* Escribe una linea del arbol: la sangria, el rol del nodo dentro de su
- * padre si hace falta aclararlo (cond, entonces, sino...), la descripcion
- * y la posicion en el fuente. */
+/* Una linea del arbol: sangria, rol (cond, entonces...), descripcion y
+ * posicion. */
 static void renglon(FILE *out, int nivel, const char *rol, const Nodo *n,
                     const char *fmt, ...)
 {
@@ -343,8 +335,7 @@ static void imprimir(FILE *out, const Nodo *n, int nivel, const char *rol)
         break;
 
     case N_ARG_EJE:
-        /* "X: 10" se imprime con el eje como rol del valor, que se lee
-         * igual que en el fuente. El eje solo (AutoHome(X)) va aparte. */
+        /* eje con valor: se imprime como "X: 10" */
         eje[0] = n->arg_eje.eje;
         eje[1] = '\0';
         if (n->arg_eje.valor)
@@ -394,9 +385,7 @@ void ast_imprimir(FILE *out, const Nodo *raiz)
     imprimir(out, raiz, 0, NULL);
 }
 
-/* ------------------------------------------------------------------ */
-/* Liberacion                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Liberacion --- */
 
 void ast_liberar(Nodo *n)
 {

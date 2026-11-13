@@ -3,14 +3,10 @@
 %option nounput noinput
 
 %{
-/* lexer.l - Analizador lexico
+/* lexer.l - Analizador lexico (spec seccion 3)
  *
- * Implementa la especificacion lexica, seccion 3.
- *
- * Nota sobre las palabras reservadas: se reconocen con reglas explicitas
- * ubicadas ANTES de la regla {ID}. Flex aplica el criterio de coincidencia
- * mas larga y, ante empate, la regla que aparece primero en el archivo.
- * Por eso el orden de este archivo no es cosmetico.
+ * Las palabras reservadas van ANTES de {ID}: ante un empate gana la
+ * primera regla.
  */
 
 #include <stdio.h>
@@ -19,13 +15,8 @@
 #include "parser.tab.h"
 #include "errores.h"
 
-/* Seguimiento de columna. yylineno lo lleva flex solo; la columna hay que
- * contarla a mano. col_inicio guarda la columna donde arranca el token
- * actual, que es la que se reporta en los errores.
- *
- * Ademas se copia la posicion a yylloc, que es por donde bison la recibe.
- * Con eso cada regla de la gramatica puede preguntar donde empieza cada
- * simbolo (@1, @2...) y guardarlo en el nodo del arbol. */
+/* La columna se cuenta a mano (la linea la lleva flex). col_inicio es
+ * donde empieza el token. La posicion se copia a yylloc para bison. */
 int columna    = 1;
 int col_inicio = 1;
 
@@ -72,8 +63,7 @@ CADENA      \"[^\"\n]*\"
 "not"               { return NOT; }
 
     /* --- Ejes y parametros --- */
-    /* Van en mayuscula y las palabras reservadas en minuscula, asi que no
-     * colisionan: "var x : number" es valido, "X" como identificador no. */
+    /* en mayuscula: no chocan con las reservadas */
 
 "X"                 { return EJE_X; }
 "Y"                 { return EJE_Y; }
@@ -133,10 +123,7 @@ CADENA      \"[^\"\n]*\"
                     }
 
     /* --- Fin del archivo --- */
-    /* YY_USER_ACTION no corre en el fin de archivo, asi que yylloc quedaria
-     * apuntando al ultimo espacio o salto de linea leido. Se fija a mano
-     * para que un error del tipo "falta una llave" marque donde termina
-     * el archivo. */
+    /* posicion del fin de archivo, para errores como "falta una llave" */
 
 <<EOF>>             {
                         yylloc.first_line   = yylloc.last_line = yylineno;

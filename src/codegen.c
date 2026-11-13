@@ -6,25 +6,12 @@
 #include "recorrido.h"
 #include "simbolos.h"
 
-/* codegen.c - Generacion de G-code
+/* codegen.c - Generacion de G-code (tercer recorrido, desde main)
  *
- * G-code no tiene variables, saltos ni condicionales: es una lista de
- * comandos que la maquina ejecuta en orden. Y el lenguaje fuente no tiene
- * entradas, asi que todo valor se conoce al compilar. Entonces generar es
- * ejecutar el programa en el compilador y escribir lo que la maquina haria:
- *
- *   - un repeat se desenrolla: su cuerpo se emite una vez por vuelta;
- *   - un procedimiento se expande en el lugar de cada llamada;
- *   - una variable se guarda en su entrada de la tabla de simbolos;
- *   - de un if se emite solo la rama que se toma.
- *
- * Es un recorrido del arbol igual al segundo del analisis semantico, con
- * una diferencia importante: alla se miran las dos ramas de cada if sin
- * conocer la condicion, y aca se conoce el valor de todo. Por eso aca se
- * vuelven a verificar los limites y el feedrate: lo que el analisis solo
- * pudo advertir porque dependia de una variable, aca tiene su valor real.
- * Una division por cero que depende de una variable tambien aparece recien
- * aca. No hay codigo intermedio: del arbol se pasa directo a G-code. */
+ * No hay entradas, asi que se ejecuta el programa: repeat se desenrolla,
+ * los procedimientos se expanden, las variables guardan su valor en la
+ * tabla y de cada if sale solo la rama que se toma. Limites y feedrate se
+ * vuelven a verificar con los valores reales. */
 
 static FILE *salida;
 
@@ -46,12 +33,9 @@ void emitir_epilogo(FILE *out)
     fprintf(out, "M84\n");       /* deshabilitar motores */
 }
 
-/* ------------------------------------------------------------------ */
-/* Builtins                                                            */
-/* ------------------------------------------------------------------ */
+/* --- Builtins --- */
 
-/* X, Y, Z, E y F salen con 3 decimales. S (temperatura, segundos,
- * ventilador) sale sin decimales si es entero. */
+/* XYZEF con 3 decimales; S sin decimales si es entero */
 static void emitir_valor(char letra, double v)
 {
     if (fabs(v) < 0.0005)
@@ -62,9 +46,8 @@ static void emitir_valor(char letra, double v)
         fprintf(salida, "%.3f", v);
 }
 
-/* El argumento de la llamada que corresponde a un parametro de la tabla, o
- * NULL si el parametro es opcional y no vino. "posicion" cuenta los
- * parametros sin eje ya vistos. */
+/* Argumento de la llamada para ese parametro, o NULL. "posicion" cuenta
+ * los posicionales ya vistos. */
 static const Nodo *argumento(const Nodo *args, const ParamBuiltin *p,
                              int *posicion)
 {
@@ -82,9 +65,7 @@ static const Nodo *argumento(const Nodo *args, const ParamBuiltin *p,
     return NULL;
 }
 
-/* Una linea sale de la fila del builtin: la plantilla y despues, en el
- * orden de la tabla, los parametros presentes. No importa en que orden
- * los haya escrito el programador. */
+/* Plantilla + parametros en el orden de la tabla */
 static void emitir_builtin(const Nodo *s, const Builtin *b)
 {
     const Nodo *args[MAX_PARAMS_BUILTIN];
@@ -93,8 +74,7 @@ static void emitir_builtin(const Nodo *s, const Builtin *b)
     int completo = 1;
     int i;
 
-    /* Primero se evalua todo, porque el comentario de una advertencia va
-     * antes de la linea y un error no tiene que dejar una linea a medias. */
+    /* primero se evalua todo: los comentarios van antes de la linea */
     for (i = 0; i < b->n_params; i++) {
         const ParamBuiltin *p = &b->params[i];
         const Nodo *valor;
@@ -139,12 +119,9 @@ static void emitir_builtin(const Nodo *s, const Builtin *b)
     fputc('\n', salida);
 }
 
-/* ------------------------------------------------------------------ */
-/* Sentencias                                                          */
-/* ------------------------------------------------------------------ */
+/* --- Sentencias --- */
 
-/* Una variable se guarda en su entrada de la tabla, como un parametro.
- * Alcanza con una sola, porque no hay recursion. */
+/* El valor va en la entrada de la tabla (sin recursion alcanza una) */
 static void asignar(Simbolo *v, const Nodo *valor)
 {
     const Nodo *culpable;

@@ -34,8 +34,7 @@ static void liberar_todo(void)
     simbolos_liberar();
 }
 
-/* Modo de prueba del analizador lexico: recorre la entrada token por token
- * y los imprime. No interviene el parser. */
+/* Modo --tokens: solo el lexer */
 static int volcar_tokens(void)
 {
     int token;
@@ -97,26 +96,19 @@ int main(int argc, char **argv)
         return r;
     }
 
-    /* Fase de analisis: lexico y sintactico juntos. Si termina bien, en
-     * "arbol" queda el programa completo. */
+    /* lexico y sintactico; si sale bien queda "arbol" */
     if (yyparse() != 0 && errores == 0)
         errores++;   /* no deberia pasar: todo error ya se reporta solo */
     fclose(yyin);
 
-    /* --ast muestra el arbol tal como lo armo el parser, sin analisis
-     * semantico: asi se puede ver tambien el de un programa que tiene
-     * errores semanticos. */
+    /* --ast: el arbol sin analisis semantico */
     if (errores == 0 && modo_ast) {
         ast_imprimir(stdout, arbol);
         liberar_todo();
         return 0;
     }
 
-    /* Analisis semantico, en dos recorridos. El primero arma la tabla de
-     * simbolos y verifica nombres y tipos; el segundo recorre el programa
-     * desde main, entrando en cada llamada, y verifica la posicion
-     * conocida y los limites. El segundo necesita el arbol decorado por el
-     * primero, asi que solo corre si el primero termino sin errores. */
+    /* semantico: el segundo recorrido solo si el primero no dio errores */
     if (errores == 0) {
         analizar_semantica(arbol);
         if (errores == 0)
@@ -137,8 +129,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    /* Generacion. El archivo de salida se abre recien aca, cuando ya se
-     * sabe que el fuente es valido. */
+    /* la salida se abre recien ahora */
     salida = fopen(ruta_salida, "w");
     if (!salida) {
         perror(ruta_salida);
@@ -151,8 +142,7 @@ int main(int argc, char **argv)
     emitir_epilogo(salida);
     fclose(salida);
 
-    /* La generacion conoce valores que el analisis no: puede encontrar un
-     * error. Ese G-code no se le puede dar a la maquina, asi que no queda. */
+    /* error al generar: se borra la salida */
     if (errores > 0) {
         remove(ruta_salida);
         fprintf(stderr, "Compilacion fallida: %d error(es).\n", errores);

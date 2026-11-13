@@ -3,14 +3,10 @@
 
 #include "ast.h"
 
-/* builtins.h - Tabla de builtins
+/* builtins.h - Tabla de builtins (spec seccion 7)
  *
- * Cada builtin es una fila de datos: su nombre, los parametros que admite
- * y como se traduce a G-code. El analisis semantico valida las llamadas
- * recorriendo la fila, sin un caso por builtin, y la generacion de codigo
- * arma la linea de G-code a partir de la misma fila.
- * Agregar un builtin cuesta una fila en builtins.c.
- * Ver especificacion, seccion 7. */
+ * Una fila por builtin: nombre, parametros y plantilla de G-code. La usan
+ * el analisis semantico y el generador. */
 
 /* Formas que puede tener un parametro en la llamada. */
 typedef enum {
@@ -20,7 +16,7 @@ typedef enum {
     P_CADENA        /* Message("hola"): un literal entre comillas    */
 } ClaseParam;
 
-/* Lo que el builtin le hace a la posicion conocida (seccion 8.1). */
+/* Efecto sobre la posicion conocida */
 typedef enum {
     EF_NINGUNO,     /* no depende de la posicion ni la cambia        */
     EF_MUEVE,       /* sus ejes X, Y, Z exigen posicion conocida      */
@@ -47,22 +43,18 @@ typedef struct {
     int           texto_sin_comentario; /* la cadena no puede tener ';'  */
     Efecto        efecto;
 
-    /* Plantilla de G-code. Es el comando base; a continuacion se agregan,
-     * en el orden de la tabla, los parametros presentes: " <letra><valor>"
-     * para los que tienen valor, " <letra>" para un eje solo y " <texto>"
-     * para una cadena. Una plantilla vacia emite solo la cadena (Raw). Si
-     * tiene varias lineas, separadas por \n, se emiten todas. */
+    /* Comando base; despues van los parametros presentes en el orden de la
+     * tabla. Vacia: solo la cadena (Raw). Puede tener varias lineas. */
     const char   *plantilla;
 
-    /* Opcional: se agrega al error cuando se le pasa un eje que no admite.
-     * Lo usa Move, para explicar por que no acepta E. */
+    /* Texto extra para el error de eje no admitido (lo usa Move) */
     const char   *pista;
 } Builtin;
 
 /* Devuelve la fila del builtin con ese nombre, o NULL. */
 const Builtin *builtin_buscar(const char *nombre);
 
-/* Para recorrer la tabla entera (cargarla en la tabla de simbolos). */
+/* La tabla completa */
 extern const Builtin builtins[];
 extern const int     n_builtins;
 
