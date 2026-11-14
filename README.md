@@ -1,106 +1,198 @@
 # MekoraLang
 
-Compilador del lenguaje MekoraLang, que traduce codigo de alto nivel a G-code
-para impresoras 3D. TP final de Compiladores, Ingenieria en Informatica.
+MekoraLang es un lenguaje para escribir rutinas de mantenimiento, calibración
+y piezas simples para una impresora 3D Ender 3. El compilador, `gcodec`, está
+escrito en C con flex y bison y traduce los programas a G-code para firmware
+Marlin. No es un slicer: no lee modelos 3D ni calcula soportes o relleno.
 
-## Dependencias
+Trabajo final de Compiladores, Ingeniería en Informática, UGD.
 
-flex, bison 3.6 o posterior, gcc, make. La version de bison se ve con
-`bison --version`; la gramatica usa mensajes de error propios, que bison
-soporta desde la 3.6.
-
-En Debian/Ubuntu:
-
-    sudo apt install flex bison build-essential
+La definición completa del lenguaje (gramática, tipos, builtins, chequeos
+semánticos y generación) está en `docs/especificacion-lenguaje.md`, y una
+versión corta en `docs/referencia-lenguaje.md`.
 
 ## Compilar
 
-    make
+Hace falta flex, bison 3.6 o posterior, gcc y make. Desde la raíz del
+proyecto:
 
-Genera el ejecutable `gcodec` en la raiz del proyecto.
+```
+make
+```
 
-## Usar
+Deja el ejecutable `gcodec` en la raíz. Todo lo que generan flex, bison y gcc
+va a `build/`. `make clean` borra todo lo generado.
 
-    ./gcodec entrada.gc -o salida.gcode
+## Probar todo de una vez
 
-Si se omite `-o`, la salida va a `salida.gcode`. El ejecutable devuelve 0 si
-la compilacion fue exitosa y 1 si hubo errores. Las advertencias se muestran
-pero no hacen fallar la compilacion.
+```
+make pruebas
+```
 
-Con `--tokens` se vuelca la lista de tokens y no interviene el parser. Sirve
-para probar el analizador lexico aislado:
+Corre los 25 programas de `tests/`, uno o dos por fase, y termina con:
 
-    ./gcodec entrada.gc --tokens
+```
+25 pruebas: 25 pasan, 0 fallan
+```
 
-Con `--ast` se imprime el arbol sintactico indentado, un nodo por linea con
-su posicion en el fuente:
+Cada archivo de `tests/` dice en su segunda línea qué se espera de él, por
+ejemplo `// Esperado: error en la linea 13: 'margen' no esta declarado`. El
+script `tests/correr_pruebas.sh` compila cada uno y verifica el código de
+salida, la línea y el texto de cada error, las advertencias y, en los
+programas válidos, que el G-code sea igual al de `tests/esperado/`. Los
+archivos `err_*.gc` tienen un error a propósito; `gen_*.gc` y `err_gen_*.gc`
+prueban la generación.
 
-    ./gcodec entrada.gc --ast
+## Uso
 
-`--ast` muestra el arbol tal como lo arma el parser, sin analisis semantico,
-asi que funciona tambien con programas que tienen errores semanticos.
+```
+./gcodec entrada.gc [-o salida.gcode] [--tokens | --ast | --tabla]
+```
 
-Con `--tabla` se hace el analisis semantico y se imprime la tabla de
-simbolos, un alcance por bloque con sus declaraciones:
+Sin `-o`, la salida va a `salida.gcode`. Devuelve 0 si compiló y 1 si hubo
+errores; las advertencias no cambian el código de salida. Los errores tienen
+el formato de gcc, `archivo:linea:columna: error <fase>: mensaje`, y ante un
+error el compilador sigue para mostrar todos los que encuentre.
 
-    ./gcodec entrada.gc --tabla
+`--tokens` vuelca los tokens sin pasar por el parser, `--ast` imprime el árbol
+sintáctico (sin análisis semántico) y `--tabla` hace el análisis semántico e
+imprime la tabla de símbolos por alcance. Lo mismo se puede pedir desde make:
+`make tokens`, `make ast` y `make tabla`, con `PROG=archivo.gc` para elegir el
+programa.
 
-## Probar
+## Escenarios
 
-    make test      compila tests/minimo.gc y muestra el G-code generado
-    make pruebas   corre todos los programas de tests/ y los compara
-    make tokens    vuelca los tokens de tests/ejemplo.gc
-    make ast       imprime el arbol de tests/ejemplo.gc
-    make tabla     imprime la tabla de simbolos de tests/ejemplo.gc
+### Un programa completo
 
-`make tokens`, `make ast` y `make tabla` aceptan otro programa:
+```
+./gcodec tests/ejemplo_completo.gc -o ejemplo.gcode
+```
 
-    make ast PROG=tests/sintaxis.gc
+Es el programa de la sección 9 de la especificación: prepara la máquina,
+prueba los ejes, purga, barre la cama y dibuja un cuadrado. Compila con dos
+advertencias, porque en `TestEjes` la velocidad `F` depende de una variable y
+el análisis no la puede verificar. En `ejemplo.gcode` se ve el prólogo (`G21`,
+`G90`, `M83`), las temperaturas tomadas de la máquina, los `repeat`
+desenrollados, los procedimientos expandidos en el lugar de cada llamada, un
+comentario antes de cada línea que tuvo advertencia y el epílogo que apaga la
+máquina.
+
+### Una pieza para ver en un simulador
+
+```
+./gcodec ejemplos/torre.gc -o torre.gcode
+```
+
+`ejemplos/torre.gc` imprime una diana de seis cuadrados concéntricos en la
+primera capa y una torre hueca de 40 capas en el centro. La hicimos para
+abrirla en un visor de G-code, porque los visores muestran los movimientos y
+la extrusión, pero no las temperaturas, el ventilador ni el estado de los
+motores, que es casi todo lo que hacen las rutinas de mantenimiento.
+
+Recomendamos el visor de G-code de PrusaSlicer, que está para Linux como
+AppImage y en Flathub. Se abre desde el menú File > G-code preview, o
+arrastrando el archivo a la ventana. Muestra cada capa por separado,
+distingue los desplazamientos de la extrusión y deja recorrer la impresión
+movimiento por movimiento. Si no se quiere instalar nada, NC Viewer
+(https://ncviewer.com) abre el archivo en el navegador, aunque está pensado
+para CNC y no distingue tan bien la extrusión.
+
+### Un error de cada fase
+
+Léxico. El `@` no es un carácter del lenguaje; el segundo error es la cascada
+en el parser:
+
+```
+$ ./gcodec tests/err_lexico.gc
+tests/err_lexico.gc:2:24: error lexico: caracter no reconocido '@'
+tests/err_lexico.gc:2:26: error sintactico: no se esperaba '3'
+```
+
+Sintáctico, con recuperación. El parser descarta hasta el próximo `;` y
+sigue, así que reporta los tres errores del archivo:
+
+```
+$ ./gcodec tests/err_recuperacion.gc
+tests/err_recuperacion.gc:4:25: error sintactico: no se esperaba ';'
+tests/err_recuperacion.gc:6:26: error sintactico: no se esperaba '<'
+tests/err_recuperacion.gc:7:12: error sintactico: se esperaba ',', ':' o ')' y se encontro '10'
+```
+
+Semántico, nombres y tipos (primer recorrido del árbol):
+
+```
+$ ./gcodec tests/err_no_declarado.gc
+tests/err_no_declarado.gc:13:13: error semantico: 'margen' no esta declarado
+
+$ ./gcodec tests/err_tipo_op.gc
+tests/err_tipo_op.gc:12:24: error semantico: el operador '+' se aplica a dos number, y aca recibe number y bool
+```
+
+Semántico, posición conocida y límites (segundo recorrido, desde `main`). En
+el primero, una rama del `if` libera los motores y la otra no; el análisis
+une las dos ramas sin mirar la condición. En el segundo, el error aparece
+recién en la quinta vuelta del `repeat`:
+
+```
+$ ./gcodec tests/err_pos_rama.gc
+tests/err_pos_rama.gc:19:5: error semantico: 'Move' con posicion desconocida en el eje X: despues del if de la linea 16 la posicion solo es conocida en una de las ramas (la perdio DisableMotors() en la linea 17)
+
+$ ./gcodec tests/err_limite_indice.gc
+tests/err_limite_indice.gc:15:21: error semantico: Y = 250 esta fuera de los limites de la maquina: tiene que estar entre 0 y 220 (Ender3.limite_y) (con fila = 4)
+```
+
+Generación. El análisis no sigue el valor de las variables y solo puede
+advertir; al generar ya se sabe que `x` vale 500, así que es un error y no
+queda archivo de salida:
+
+```
+$ ./gcodec tests/err_gen_limite_variable.gc -o rechazo.gcode
+tests/err_gen_limite_variable.gc:15:10: advertencia: no se puede verificar en compilacion que X quede entre 0 y 220: depende de la variable 'x'
+tests/err_gen_limite_variable.gc:15:10: error generacion: X = 500 esta fuera de los limites de la maquina: tiene que estar entre 0 y 220 (Ender3.limite_x)
+$ ls rechazo.gcode
+ls: cannot access 'rechazo.gcode': No such file or directory
+```
+
+### Las fases por dentro
+
+```
+./gcodec tests/minimo.gc --tokens
+./gcodec tests/precedencia.gc --ast
+./gcodec tests/ocultamiento.gc --tabla
+```
+
+`precedencia.gc` sirve para ver en el árbol cómo se agrupan los operadores, y
+`ocultamiento.gc` para ver en la tabla los alcances anidados y un nombre que
+oculta a otro.
+
+## Editor
+
+En `vscode-mekoralang/` hay una extensión de VS Code que colorea los `.gc`:
+palabras reservadas, builtins, ejes, números, cadenas y comentarios. El
+paquete ya está armado:
+
+```
+code --install-extension vscode-mekoralang/mekoralang-0.1.0.vsix
+```
 
 ## Estructura
 
-    src/lexer.l      analizador lexico (flex)
-    src/parser.y     analizador sintactico (bison) y construccion del arbol
-    src/ast.c        arbol sintactico: nodos, impresion y liberacion
-    src/tokens.c     nombres de los tokens, para el modo --tokens
-    src/simbolos.c   tabla de simbolos por alcance
-    src/builtins.c   tabla de builtins: parametros, efecto y plantilla de G-code
-    src/evaluador.c  evaluacion de expresiones
-    src/semantico.c  analisis semantico, primer recorrido: nombres y tipos
-    src/posicion.c   analisis semantico, segundo recorrido: posicion y limites
-    src/recorrido.c  lo que comparten el segundo recorrido y la generacion
-    src/errores.c    reporte de errores y advertencias con archivo, linea y columna
-    src/codegen.c    generacion de G-code, tercer recorrido
-    src/main.c       punto de entrada, argumentos y codigo de salida
-    tests/           programas de prueba, validos y con errores
-    tests/esperado/  G-code esperado de cada programa valido
-    vscode-mekoralang/  colores para los .gc en VS Code (ver su README)
-    docs/            especificacion y referencia del lenguaje
-    build/           archivos generados, no se versiona
-
-## Estado
-
-Analizador lexico y sintactico completos. El parser reconoce toda la
-gramatica de la especificacion, sin conflictos, y construye el arbol
-sintactico. Ante un error de sintaxis descarta hasta el proximo `;` y sigue,
-asi que un mismo archivo puede reportar varios errores.
-
-Analisis semantico completo. Se hace en dos recorridos del arbol. El
-primero arma la tabla de simbolos por alcance, resuelve los nombres,
-calcula los tipos y verifica la forma de cada llamada. El segundo recorre el
-programa desde main, entrando en cada llamada y repitiendo el cuerpo de
-cada repeat, y verifica que no se mueva un eje sin posicion conocida y que
-ningun movimiento se salga de los limites de la maquina ni supere su
-velocidad maxima.
-
-Generacion de G-code completa. Como G-code no tiene variables ni saltos y el
-lenguaje no tiene entradas, el compilador ejecuta el programa y escribe lo
-que la maquina haria: desenrolla cada repeat, expande cada procedimiento en
-el lugar de la llamada y de cada if emite solo la rama que se toma. Si un
-valor que depende de una variable resulta estar fuera de los limites, o hay
-una division por cero, es un error y no queda archivo de salida.
-
-Pruebas automatizadas: `make pruebas` corre los 25 programas de `tests/`.
-Cada uno dice en su encabezado que se espera, y el script verifica el
-codigo de salida, la linea y el texto de cada error, las advertencias y,
-en los programas validos, el G-code contra `tests/esperado/`.
+```
+src/lexer.l       analizador lexico (flex)
+src/parser.y      analizador sintactico (bison) y construccion del arbol
+src/ast.c         arbol sintactico
+src/tokens.c      nombres de los tokens, para --tokens
+src/simbolos.c    tabla de simbolos encadenada por alcance
+src/builtins.c    tabla de builtins: parametros y plantilla de G-code
+src/evaluador.c   evaluacion de expresiones
+src/semantico.c   primer recorrido: nombres, tipos y forma de las llamadas
+src/posicion.c    segundo recorrido: posicion conocida, limites y feedrate
+src/recorrido.c   lo que comparten el segundo recorrido y la generacion
+src/codegen.c     tercer recorrido: generacion de G-code
+src/errores.c     reporte de errores y advertencias
+src/main.c        argumentos, orden de las fases y codigo de salida
+tests/            programas de prueba y tests/esperado/ con el G-code esperado
+ejemplos/         pieza para ver en un simulador
+docs/             especificacion y referencia del lenguaje
+vscode-mekoralang/  extension de VS Code
+```

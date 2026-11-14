@@ -1,0 +1,65 @@
+// Pieza para ver en un simulador de G-code: una diana de cuadrados
+// concentricos en la primera capa y una torre hueca en el centro.
+
+machine Ender3 {
+    temp_extrusor: 205;
+    temp_cama: 60;
+    limite_x: 220;
+    limite_y: 220;
+    limite_z: 250;
+    feedrate_max: 6000;
+}
+
+const CENTRO  : number = 110;
+const CAPA    : number = 0.2;
+// mm de filamento por mm de trayectoria (boquilla 0.4, capa 0.2, filamento 1.75)
+const FLUJO   : number = 0.033;
+const ANILLOS : number = 6;
+const PISOS   : number = 40;
+
+procedure Preparar(m: machine) {
+    SetBedTemp(m.temp_cama);
+    SetExtruderTemp(m.temp_extrusor);
+    WaitBedTemp(m.temp_cama);
+    WaitExtruderTemp(m.temp_extrusor);
+    AutoHome();
+}
+
+// Linea de purga sobre el borde izquierdo
+procedure Purgar() {
+    Move(X: 5, Y: 20, Z: CAPA, F: 3000);
+    Draw(X: 5,   Y: 180, E: 160 * FLUJO * 1.5, F: 1500);
+    Draw(X: 5.5, Y: 20,  E: 160 * FLUJO * 1.5, F: 1500);
+}
+
+procedure Cuadrado(x: number, y: number, lado: number, z: number) {
+    Move(Z: z + 1, F: 1500);
+    Move(X: x, Y: y, F: 4000);
+    Move(Z: z, F: 1500);
+    Draw(X: x + lado, Y: y,        E: lado * FLUJO, F: 1500);
+    Draw(X: x + lado, Y: y + lado, E: lado * FLUJO, F: 1500);
+    Draw(X: x,        Y: y + lado, E: lado * FLUJO, F: 1500);
+    Draw(X: x,        Y: y,        E: lado * FLUJO, F: 1500);
+}
+
+main {
+    Preparar(Ender3);
+    Purgar();
+
+    // primera capa: cuadrados de 20 a 80 mm de lado
+    repeat ANILLOS as anillo {
+        Cuadrado(CENTRO - 10 - anillo * 6, CENTRO - 10 - anillo * 6,
+                 20 + anillo * 12, CAPA);
+    }
+
+    // torre de 20 mm de lado, el ventilador se prende en el segundo piso
+    repeat PISOS as piso {
+        if (piso == 1) {
+            Fan(S: 255);
+        }
+        Cuadrado(CENTRO - 10, CENTRO - 10, 20, CAPA * (piso + 2));
+    }
+
+    Move(Z: 30, F: 1500);
+    Message("Listo");
+}
