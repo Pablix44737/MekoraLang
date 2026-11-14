@@ -1,4 +1,4 @@
-/* parser.y - Analizador sintactico (spec seccion 4) y armado del arbol
+/* parser.y - Analizador sintactico y armado del arbol
  *
  * Precedencia por niveles, un no terminal por nivel, sin %left/%right.
  * Sin conflictos: llaves obligatorias en el if y ejes como tokens.

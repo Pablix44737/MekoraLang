@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "ast.h"
 
-/* Prologo y epilogo fijos (spec seccion 6) */
+/* Prologo y epilogo fijos */
 
 void emitir_prologo(FILE *out);
 void emitir_epilogo(FILE *out);

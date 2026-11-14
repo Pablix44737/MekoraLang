@@ -3,7 +3,7 @@
 %option nounput noinput
 
 %{
-/* lexer.l - Analizador lexico (spec seccion 3)
+/* lexer.l - Analizador lexico
  *
  * Las palabras reservadas van ANTES de {ID}: ante un empate gana la
  * primera regla.

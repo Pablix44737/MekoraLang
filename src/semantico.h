@@ -7,7 +7,7 @@
  *
  * Tabla de simbolos, nombres, tipos y llamadas. Deja el arbol decorado. */
 
-/* Campos obligatorios de la maquina (spec 5.1) */
+/* Campos obligatorios de la maquina */
 #define CAMPO_LIMITE_X      "limite_x"
 #define CAMPO_LIMITE_Y      "limite_y"
 #define CAMPO_LIMITE_Z      "limite_z"

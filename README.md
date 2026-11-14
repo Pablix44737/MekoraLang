@@ -7,9 +7,8 @@ Marlin. No es un slicer: no lee modelos 3D ni calcula soportes o relleno.
 
 Trabajo final de Compiladores, Ingeniería en Informática, UGD.
 
-La definición completa del lenguaje (gramática, tipos, builtins, chequeos
-semánticos y generación) está en `docs/especificacion-lenguaje.md`, y una
-versión corta en `docs/referencia-lenguaje.md`.
+El lenguaje (tipos, sentencias, builtins, reglas y gramática) está descrito
+en `docs/referencia-lenguaje.md`.
 
 ## Compilar
 
@@ -68,7 +67,7 @@ programa.
 ./gcodec tests/ejemplo_completo.gc -o ejemplo.gcode
 ```
 
-Es el programa de la sección 9 de la especificación: prepara la máquina,
+Es un programa completo de ejemplo: prepara la máquina,
 prueba los ejes, purga, barre la cama y dibuja un cuadrado. Compila con dos
 advertencias, porque en `TestEjes` la velocidad `F` depende de una variable y
 el análisis no la puede verificar. En `ejemplo.gcode` se ve el prólogo (`G21`,
@@ -193,6 +192,6 @@ src/errores.c     reporte de errores y advertencias
 src/main.c        argumentos, orden de las fases y codigo de salida
 tests/            programas de prueba y tests/esperado/ con el G-code esperado
 ejemplos/         pieza para ver en un simulador
-docs/             especificacion y referencia del lenguaje
+docs/             referencia y gramatica del lenguaje
 vscode-mekoralang/  extension de VS Code
 ```

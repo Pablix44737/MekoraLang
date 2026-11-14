@@ -1,4 +1,4 @@
-// La muestra de salida de la seccion 10 de la especificacion.
+// Un repeat dentro de un procedimiento, con su salida esperada.
 // Esperado: compila sin errores
 
 machine Ender3 { temp_extrusor: 210; temp_cama: 60;

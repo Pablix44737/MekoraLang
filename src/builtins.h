@@ -3,7 +3,7 @@
 
 #include "ast.h"
 
-/* builtins.h - Tabla de builtins (spec seccion 7)
+/* builtins.h - Tabla de builtins
  *
  * Una fila por builtin: nombre, parametros y plantilla de G-code. La usan
  * el analisis semantico y el generador. */

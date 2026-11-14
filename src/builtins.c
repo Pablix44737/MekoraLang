@@ -7,7 +7,7 @@
 #define POSICIONAL(letra)   { P_POSICIONAL, 0, DATO_NUMBER, 1,     letra }
 #define CADENA              { P_CADENA,     0, DATO_NUMBER, 1,     0 }
 
-/* Un builtin por operacion (spec seccion 1). Move no admite E. */
+/* Un builtin por operacion. Move no admite E. */
 const Builtin builtins[] = {
     /* nombre, n, parametros, requiere_posicion, texto_sin_comentario,
      * efecto, plantilla, pista (opcional) */

@@ -1,4 +1,4 @@
-# Sentencias del lenguaje
+# Referencia del lenguaje
 
 ## Tipos de dato
 
@@ -226,3 +226,50 @@ main {
     LiberarParaLimpieza();
 }
 ```
+
+## Gramática
+
+La gramática completa, en EBNF. Es la misma que implementa `src/parser.y`.
+
+```
+programa       ::= { declaracion } main_block
+declaracion    ::= machine_decl | const_decl | procedure_decl
+
+machine_decl   ::= "machine" ID "{" campo { campo } "}"
+campo          ::= ID ":" expr ";"
+const_decl     ::= "const" ID ":" tipo "=" expr ";"
+procedure_decl ::= "procedure" ID "(" [ lista_param ] ")" bloque
+lista_param    ::= param { "," param }
+param          ::= ID ":" tipo
+tipo           ::= "number" | "bool" | "machine"
+
+main_block     ::= "main" bloque
+bloque         ::= "{" { sentencia } "}"
+
+sentencia      ::= var_decl | asignacion | if_stmt | repeat_stmt
+                 | llamada | bloque
+var_decl       ::= "var" ID ":" tipo "=" expr ";"
+asignacion     ::= ID "=" expr ";"
+if_stmt        ::= "if" "(" expr ")" bloque [ "else" ( bloque | if_stmt ) ]
+repeat_stmt    ::= "repeat" expr [ "as" ID ] bloque
+llamada        ::= ID "(" [ lista_arg ] ")" ";"
+lista_arg      ::= arg { "," arg }
+arg            ::= expr | eje ":" expr | eje | CADENA
+eje            ::= "X" | "Y" | "Z" | "E" | "F" | "S"
+
+expr           ::= or_expr
+or_expr        ::= and_expr { "or" and_expr }
+and_expr       ::= not_expr { "and" not_expr }
+not_expr       ::= [ "not" ] rel_expr
+rel_expr       ::= add_expr [ relop add_expr ]
+relop          ::= "==" | "!=" | "<" | ">" | "<=" | ">="
+add_expr       ::= mul_expr { ( "+" | "-" ) mul_expr }
+mul_expr       ::= unario { ( "*" | "/" | "%" ) unario }
+unario         ::= [ "-" ] primario
+primario       ::= NUMERO | "true" | "false" | ID [ "." ID ] | "(" expr ")"
+```
+
+La precedencia de los operadores sale del orden de las reglas de expresión,
+de menor a mayor. Como las ramas del if siempre llevan llaves, no hay
+ambigüedad con el else. Un eje solo, sin valor, se acepta únicamente en
+AutoHome(X, Y).

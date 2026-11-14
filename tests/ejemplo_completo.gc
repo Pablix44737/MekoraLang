@@ -1,4 +1,4 @@
-// Programa de ejemplo de la seccion 9 de la especificacion, completo.
+// Programa de ejemplo completo: mantenimiento, prueba de ejes y una pieza.
 // Preparar hace el AutoHome y BarridoCama mueve despues: el segundo
 // recorrido entra en cada llamada con la posicion que dejo la anterior.
 // Esperado: compila sin errores, con advertencias en las lineas 51 y 52 por F: vel

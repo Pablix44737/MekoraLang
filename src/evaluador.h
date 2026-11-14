@@ -6,7 +6,7 @@
 /* evaluador.h - Evaluacion de expresiones en compilacion
  *
  * Constante: literales, const, campos, indices y parametros con argumento
- * constante (spec 8.3). Las variables tienen valor recien al generar.
+ * constante. Las variables tienen valor recien al generar.
  * bool = 0 o 1. and y or sin cortocircuito. */
 
 typedef enum {
